@@ -24,6 +24,10 @@
 class Crossfield {
 public:
     using Point = ACG::Vec3d;
+    /// Handy typedefs sparse gmm vector matrix types
+    typedef gmm::col_matrix<gmm::wsvector<double>>  CMatrixType;
+    typedef gmm::row_matrix<gmm::wsvector<double>>  RMatrixType;
+    typedef gmm::wsvector<double>                   CVectorType;
 public:
 
     /*
@@ -43,6 +47,50 @@ public:
     void getCrossfield();
 
     void getEnergy();
+
+
+    /// test functions using given linear system from quadratic problem A, x, b: x^T * A * x + b^T x
+    double computeEnergy(const CMatrixType& A, const CVectorType& x, const CVectorType b) const {
+        int m = gmm::mat_nrows(A);
+        int n = gmm::mat_ncols(A);
+        assert(m == n);
+
+        std::vector<double> y(n);
+        gmm::mult(A, x, y);    // y = A*x
+        double p = gmm::vect_sp(x, y); // x^T * y = x^T * A * x
+        double q = gmm::vect_sp(x, b); // scalar product
+
+        return (p + q);
+    }
+
+    /// check that angle from first to second equals negative of second to first
+    inline bool testKappa(const int refEdgeMain, const int refEdgeNeigh, const std::pair<int, int> commonEdge) {
+        const double tol = 1e-7;
+        double kappa01 = getKappa(refEdgeMain, refEdgeNeigh, commonEdge);
+        double kappa10 = getKappa(refEdgeNeigh, refEdgeMain, {commonEdge.second, commonEdge.first});
+        double adiff = std::abs(kappa01 + kappa10);
+        bool ok = adiff < tol;
+        if (!ok) {
+            std::cerr << "kappa is not skew symmetric: |" << kappa01 << " + " << kappa10 << "| = " << adiff << "!= 0" << std::endl;
+        }
+        return ok;
+    }
+
+    /// check constraints are satisfied
+    inline bool check_constraints(const RMatrixType& C, const CVectorType& x, double& max_violation) const {
+        const double tol = 1e-6;
+        int m = gmm::mat_nrows(C);
+        max_violation = 0.;
+        for (int r = 0; r < m; ++r) {
+            double val = gmm::vect_sp(C.row(r), x);
+            assert(!std::isnan(val));
+            double nval = std::abs(val);
+            if (nval > max_violation) {
+                max_violation = val;
+            }
+        }
+        return (max_violation < tol);
+    }
 
 private:
 
