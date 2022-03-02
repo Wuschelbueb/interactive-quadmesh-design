@@ -14,8 +14,8 @@ void Crossfield::createCrossfields() {
     std::vector<int> faces = getReferenceEdge(constrainedHalfEdges);
     setlocalCoordFrame(faces);
     std::map<int, double> edgeKappa = getMapHeKappa(faces);
-    gmm::col_matrix<gmm::wsvector<double>> _A = getMatrixA(faces, edgeKappa);
-    gmm::row_matrix<gmm::wsvector<double>> _constraints = getConstraintMatrix(edgeKappa, constrainedHalfEdges, faces);
+    CMatrixType _A = getMatrixA(faces, edgeKappa);
+    RMatrixType _constraints = getConstraintMatrix(edgeKappa, constrainedHalfEdges, faces);
     std::vector<double> _x(edgeKappa.size() + faces.size(), 0.0);
     std::vector<double> _rhs = getRHS(edgeKappa, faces);
     std::vector<int> _idx_to_round = getIdxToRound(edgeKappa, faces);
@@ -62,12 +62,25 @@ void Crossfield::createCrossfields() {
 //        std::cout << "_rhs position (" << i << ") with value (after calc): " << _rhs[i] << std::endl;
 //    }
 //
-//    std::cout << "constraints after: " << _constraints << std::endl;
+//    std::cout << "constraints after: " << _constraints << std::endl;-
     double energy_before = getEnergy(edgeKappa, faces, _rhsOld, _x);
     double energy_after = getEnergy(edgeKappa, faces, _rhs, _x);
     std::cout << "The energy before the smoothing is:\t" << energy_before << std::endl
               << "The energy after the smoothing is:\t" << energy_after << std::endl;
 
+    // test examples
+    const double tol = 1e-6;
+    int n = gmm::mat_nrows(_A);
+    CVectorType y(n), b(n);
+    gmm::copy(_x, y);
+    gmm::copy(_rhs, b);
+    double ea = computeEnergy(_A, y, b);
+    bool eb_ok = std::abs(ea - energy_after) < tol;
+//    assert(eb_ok);
+    if (!eb_ok) {
+        std::cerr << "the energies do not coincide: " << energy_after
+                  << " x^T A x + b^t x = " << ea << std::endl;
+    }
 }
 
 double Crossfield::getEnergy(const std::map<int, double> &edgeKappa, const std::vector<int> &faces,
@@ -353,6 +366,10 @@ void Crossfield::getStatusNeigh(const OpenMesh::FaceHandle fh, const OpenMesh::F
         // get the common edge between the triangles
         commonEdge = getCommonEdgeBetweenTriangles(fh, fh_neigh, refEdgeMain, refEdgeNeigh);
         kappa = getKappa(refEdgeMain, refEdgeNeigh, commonEdge);
+
+        // example test kappa
+        bool kappa_ok = testKappa(refEdgeMain, refEdgeNeigh, commonEdge);
+//        assert(kappa_ok);
         addKappaHeToMap(commonEdge, kappa, edgeKappa);
     }
 }
@@ -384,58 +401,35 @@ Crossfield::getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::p
     // there are 9 different scenarios on how reference edges can be placed in two adjacent triangles
     // refEdge shares common edge
     double alpha = 0.0, beta = alpha, kappa = alpha;
-    if (refEdgeMain == commonEdge.first) {
-        alpha = 0.0;
-        if (refEdgeNeigh == commonEdge.second)
-            beta = 0.0;
-        if (refEdgeNeigh ==
-            trimesh_.prev_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(refEdgeNeigh));
-        if (refEdgeNeigh ==
-            trimesh_.next_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(commonEdge.second));
-
-        // refEdge is the previous halfedge of the common edge
-    } else if (refEdgeMain ==
-               trimesh_.prev_halfedge_handle(trimesh_.halfedge_handle(commonEdge.first)).idx()) {
-        alpha = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(refEdgeMain));
-        if (refEdgeNeigh == commonEdge.second)
-            beta = 0.0;
-        if (refEdgeNeigh ==
-            trimesh_.prev_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = M_PI - trimesh_.calc_sector_angle(trimesh_.halfedge_handle(refEdgeNeigh));
-        if (refEdgeNeigh ==
-            trimesh_.next_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(commonEdge.second));
-        // refEdge is the next halfedge of the common edge
-    } else if (refEdgeMain ==
-               trimesh_.next_halfedge_handle(trimesh_.halfedge_handle(commonEdge.first)).idx()) {
-        alpha = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(commonEdge.first));
-        if (refEdgeNeigh == commonEdge.second)
-            beta = 0.0;
-        if (refEdgeNeigh ==
-            trimesh_.prev_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = trimesh_.calc_sector_angle(trimesh_.halfedge_handle(refEdgeNeigh));
-        if (refEdgeNeigh ==
-            trimesh_.next_halfedge_handle(trimesh_.halfedge_handle(commonEdge.second)).idx())
-            beta = M_PI - trimesh_.calc_sector_angle(trimesh_.halfedge_handle(commonEdge.second));
-//    } else {
-//        throw std::runtime_error("Something went wrong, there needs to be a ref edge in the main triangle!\n");
+    // counter starts at one because there is always at least a PI to simulate the turn form one triangle to the other
+    int tempHe = refEdgeMain, counter = 1;
+    while (tempHe != commonEdge.first) {
+        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(tempHe);
+        alpha += trimesh_.calc_sector_angle(heh);
+        tempHe = trimesh_.next_halfedge_handle(heh).idx();
+        counter++;
     }
-    kappa = alpha + beta;
-//    if (kappa <= 0 || kappa >= 2 * M_PI) {
-//        throw std::runtime_error(
-//                std::string("getKappa: kappa can't be bigger than ") + std::to_string(kappa * 180 / M_PI));
-//    }
+    tempHe = refEdgeNeigh;
+    while (tempHe != commonEdge.second) {
+        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(tempHe);
+        beta += trimesh_.calc_sector_angle(heh);
+        tempHe = trimesh_.next_halfedge_handle(heh).idx();
+        counter++;
+    }
+    kappa = alpha + beta + counter * M_PI;
+    // make sure kappa is in range of (-pi, pi]
+    if (kappa < -M_PI || kappa >= M_PI) {
+        kappa = std::fmod(kappa, 2 * M_PI);
+    }
     return kappa;
 }
 
 void Crossfield::addKappaHeToMap(const std::pair<int, int> commonEdge, const double kappa,
                                  std::map<int, double> &edgeKappa) {
+    // if the opposite he isn't already in the list, add this he to the list
     if (edgeKappa.find(commonEdge.second) == edgeKappa.end()) {
-        int RefHEdgeIndex = commonEdge.first;
-        std::cout << "RefHEdgeIndex: " << RefHEdgeIndex << " kappa: " << kappa * 180 / M_PI << std::endl << std::endl;
-        edgeKappa[RefHEdgeIndex] = kappa;
+        std::cout << "RefHEdgeIndex: " << commonEdge.first << " kappa: " << kappa * 180 / M_PI << std::endl << std::endl;
+        edgeKappa[commonEdge.first] = kappa;
     }
 }
 
@@ -578,53 +572,45 @@ void Crossfield::getSelectedFaces(std::vector<int> &constraints) {
 void Crossfield::setlocalCoordFrame(const std::vector<int> &faces) {
     auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
     auto constraint_angle = OpenMesh::FProp<double>(trimesh_, "constraint_angle");
-    auto xa = OpenMesh::FProp<Point>(trimesh_, "xa");
-    auto ya = OpenMesh::FProp<Point>(trimesh_, "ya");
-    auto x_vec_field = OpenMesh::FProp<Point>(trimesh_, "x_vec_field");
-    auto y_vec_field = OpenMesh::FProp<Point>(trimesh_, "y_vec_field");
-    auto x_vec_field_m = OpenMesh::FProp<Point>(trimesh_, "x_vec_field_m");
-    auto y_vec_field_m = OpenMesh::FProp<Point>(trimesh_, "y_vec_field_m");
+    auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
+    auto vVectorField = OpenMesh::FProp<Point>(trimesh_, "vVectorField");
     for (int i: faces) {
         double alpha = 0.0;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(referenceHeIdx[fh]);
-        Point a = trimesh_.calc_edge_vector(heh).normalize();
-        double xComponent = OpenMesh::dot(a, {1, 0, 0});
-        double yComponent = OpenMesh::dot(a, {0, 1, 0});
+        Point u = trimesh_.calc_edge_vector(heh).normalize();
+        Point v = u % trimesh_.calc_face_normal(fh);
+        double xComponent = OpenMesh::dot(u, u);
+        double yComponent = OpenMesh::dot(u, v);
         alpha = std::atan2(yComponent, xComponent);
 //        if (alpha < 0) {
 //            alpha = 2 * M_PI + alpha;
 //        }
         constraint_angle[fh] = alpha;
         std::cout << "theta_c (" << i << ") is: " << alpha * 180 / M_PI << " degrees." << std::endl;
-        Point b = a % trimesh_.calc_face_normal(fh);
-        xa[fh] = {1, 0, 0};
-        ya[fh] = {0, 1, 0};
-        x_vec_field[fh] = a;
-        x_vec_field_m[fh] = -a;
-        y_vec_field[fh] = b;
-        y_vec_field_m[fh] = -b;
+        uVectorField[fh] = u;
+        vVectorField[fh] = v;
     }
     std::cout << std::endl;
 }
 
 void Crossfield::rotateLocalCoordFrame(const std::vector<int> &faces, const std::vector<double> _x) {
     auto pos_matrixA = OpenMesh::FProp<int>(trimesh_, "pos_matrixA");
-    auto x_vec_field = OpenMesh::FProp<Point>(trimesh_, "x_vec_field");
-    auto y_vec_field = OpenMesh::FProp<Point>(trimesh_, "y_vec_field");
-    auto x_vec_field_rot = OpenMesh::FProp<Point>(trimesh_, "x_vec_field_rot");
-    auto y_vec_field_rot = OpenMesh::FProp<Point>(trimesh_, "y_vec_field_rot");
+    auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
+    auto vVectorField = OpenMesh::FProp<Point>(trimesh_, "vVectorField");
+    auto uVectorFieldRot = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRot");
+    auto vVectorFieldRot = OpenMesh::FProp<Point>(trimesh_, "vVectorFieldRot");
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         int position = pos_matrixA[fh];
-        Point p_x = x_vec_field[fh];
-        Point p_y = y_vec_field[fh];
+        Point p_x = uVectorField[fh];
+        Point p_y = vVectorField[fh];
         double radians = std::fmod(_x[position], 2 * M_PI);
         std::cout << "face (" << i << ") with (" << _x[position] << "): with angle: " << radians << "(rad) and "
                   << radians * 180 / M_PI << "(deg)"
                   << std::endl;
-        x_vec_field_rot[fh] = p_x * cos(radians) - p_y * sin(radians);
-        y_vec_field_rot[fh] = p_x * sin(radians) + p_y * cos(radians);
+        uVectorFieldRot[fh] = p_x * cos(radians) - p_y * sin(radians);
+        vVectorFieldRot[fh] = p_x * sin(radians) + p_y * cos(radians);
     }
 }
 
