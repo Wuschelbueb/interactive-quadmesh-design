@@ -25,9 +25,9 @@ class Crossfield {
 public:
     using Point = ACG::Vec3d;
     /// Handy typedefs sparse gmm vector matrix types
-    typedef gmm::col_matrix<gmm::wsvector<double>>  CMatrixType;
-    typedef gmm::row_matrix<gmm::wsvector<double>>  RMatrixType;
-    typedef gmm::wsvector<double>                   CVectorType;
+    typedef gmm::col_matrix<gmm::wsvector<double>> CMatrixType;
+    typedef gmm::row_matrix<gmm::wsvector<double>> RMatrixType;
+    typedef gmm::wsvector<double> CVectorType;
 public:
 
     /*
@@ -50,7 +50,7 @@ public:
 
 
     /// test functions using given linear system from quadratic problem A, x, b: x^T * A * x + b^T x
-    double computeEnergy(const CMatrixType& A, const CVectorType& x, const CVectorType b) const {
+    double computeEnergy(const CMatrixType &A, const CVectorType &x, const CVectorType b) const {
         int m = gmm::mat_nrows(A);
         int n = gmm::mat_ncols(A);
         assert(m == n);
@@ -71,13 +71,14 @@ public:
         double adiff = std::abs(kappa01 + kappa10);
         bool ok = adiff < tol;
         if (!ok) {
-            std::cerr << "kappa is not skew symmetric: |" << kappa01 << " + " << kappa10 << "| = " << adiff << "!= 0" << std::endl;
+            std::cerr << "kappa is not skew symmetric: |" << kappa01 << " + " << kappa10 << "| = " << adiff << "!= 0"
+                      << std::endl;
         }
         return ok;
     }
 
     /// check constraints are satisfied
-    inline bool check_constraints(const RMatrixType& C, const CVectorType& x, double& max_violation) const {
+    inline bool check_constraints(const RMatrixType &C, const CVectorType &x, double &max_violation) const {
         const double tol = 1e-6;
         int m = gmm::mat_nrows(C);
         max_violation = 0.;
@@ -97,8 +98,7 @@ private:
     void createCrossfields();
 
     double
-    getEnergy(const std::map<int, double> &edgeKappa, const std::vector<int> &faces, const std::vector<double> &_rhs,
-              const std::vector<double> &_x);
+    getEnergy(const CMatrixType &A, const std::vector<double> &x, const std::vector<double> &b);
 
     gmm::row_matrix<gmm::wsvector<double>>
     getConstraintMatrix(const std::map<int, double> &edgeKappa, const std::vector<int> &constraintHalfEdges,
@@ -168,6 +168,8 @@ private:
     void getSelectedFaces(std::vector<int> &constraints);
 
     double getTotalArea(const std::vector<int> &faces);
+
+    double shortenKappa(const double kappa);
 
     std::vector<int> getConstraintEdges(const std::vector<int> &constrainedHEdges);
 

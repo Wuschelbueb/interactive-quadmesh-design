@@ -62,11 +62,10 @@ void Crossfield::createCrossfields() {
 //        std::cout << "_rhs position (" << i << ") with value (after calc): " << _rhs[i] << std::endl;
 //    }
 //
-//    std::cout << "constraints after: " << _constraints << std::endl;-
-    double energy_before = getEnergy(edgeKappa, faces, _rhsOld, _x);
-    double energy_after = getEnergy(edgeKappa, faces, _rhs, _x);
-    std::cout << "The energy before the smoothing is:\t" << energy_before << std::endl
-              << "The energy after the smoothing is:\t" << energy_after << std::endl;
+//    std::cout << "constraints after: " << _constraints << std::endl;
+    double energy_after = getEnergy(_A, _x, _rhs);
+//    double energy_after = getEnergy(edgeKappa, faces, _rhs, _x);
+    std::cout << "The energy after the smoothing is:\t" << energy_after << std::endl;
 
     // test examples
     const double tol = 1e-6;
@@ -83,26 +82,13 @@ void Crossfield::createCrossfields() {
     }
 }
 
-double Crossfield::getEnergy(const std::map<int, double> &edgeKappa, const std::vector<int> &faces,
-                             const std::vector<double> &_rhs, const std::vector<double> &_x) {
-    auto pos_matrixA = OpenMesh::FProp<int>(trimesh_, "pos_matrixA");
-    int pj_start = faces.size();
-    double m_pi = M_PI;
-    double sum = 0.0;
-    for (auto i: edgeKappa) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(heh);
-        OpenMesh::HalfedgeHandle oheh = trimesh_.opposite_halfedge_handle(heh);
-        OpenMesh::FaceHandle ofh = trimesh_.face_handle(oheh);
-        int position = pos_matrixA[fh];
-        int opposite_position = pos_matrixA[ofh];
-//        std::cout << "theta_i: " << _x[position] << std::endl << "kappa: " << _rhs[pj_start] << std::endl
-//                  << "periodjump: "
-//                  << _x[pj_start] << std::endl << "theta_j: " << _x[opposite_position] << std::endl;
-        sum += pow((_x[position] + _rhs[pj_start] + (M_PI / 2. * _x[pj_start]) - _x[opposite_position]), 2);
-        pj_start++;
-    }
-    return sum;
+double Crossfield::getEnergy(const CMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_rhs) {
+    int n = gmm::mat_nrows(_A);
+    CVectorType temp(n);
+    gmm::mult(_A, _x, temp); // temp = A*x
+    double p = gmm::vect_sp(_x, temp); // x^T * temp = x^T * A * x
+    double q = gmm::vect_sp(_x, _rhs); // scalar product
+    return (p + q);
 }
 
 gmm::row_matrix<gmm::wsvector<double>>
@@ -140,10 +126,12 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &edgeKappa, const st
         counter++;
     }
     dualSpanningTreeConstraint(edgeKappa, counter, pj_start, noOriginConst, _constraints);
-    if (counter != n_row) {
-        std::ostringstream oss;
-        oss << "getConstraintMatrix: amount of rows has to be the: " << n_row << " and not: " << counter << "\n";
-        throw std::runtime_error(oss.str());
+    try {
+        if (counter != n_row) {
+            throw counter;
+        }
+    } catch (int x) {
+        std::cerr << "getConstraintMatrix: amount of rows has to be the: " << n_row << " and not: " << counter << "\n";
     }
     gmm::clean(_constraints, 1E-10);
     return _constraints;
@@ -260,9 +248,13 @@ Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, cons
         if (it2 != edgeKappa.end()) {
             sum -= (it2->second * edge_weight);
 //            std::cout << "Kappa value neighbour triangle: " << it2->second << "\nsum neigh:\t" << sum << std::endl;
-//        } else if (it != edgeKappa.end() && it2 != edgeKappa.end()) {
-//            throw std::runtime_error(
-//                    "Opposite Halfedges can't both be in edgeKappa!\n");
+        }
+        try {
+            if (it != edgeKappa.end() && it2 != edgeKappa.end()) {
+                throw 404;
+            }
+        } catch (int x) {
+            std::cerr << "setSum: Opposite Halfedges can't both be in edgeKappa vector!\n";
         }
     }
     return sum;
@@ -346,8 +338,12 @@ std::map<int, double> Crossfield::getMapHeKappa(const std::vector<int> &faces) {
             getStatusNeigh(fh, *ff_it, edgeKappa);
         }
     }
-    if (edgeKappa.empty()) {
-        throw std::runtime_error("getMapHeKappa: edgeKappa Map can't be empty!\n");
+    try {
+        if (edgeKappa.empty()) {
+            throw 404;
+        }
+    } catch (int x) {
+        std::cerr << "getMapHeKappa: edgeKappa Map can't be empty!\n";
     }
     return edgeKappa;
 }
@@ -390,15 +386,18 @@ Crossfield::getCommonEdgeBetweenTriangles(const OpenMesh::FaceHandle fh, const O
         }
     }
     END_LOOP:
-    if (commonEdge.first == INT_MAX || commonEdge.second == INT_MAX) {
-        throw std::runtime_error("getCommonEdgeBetweenTriangles: commonEdge can't have the value INT_MAX!\n");
+    try {
+        if (commonEdge.first == INT_MAX || commonEdge.second == INT_MAX) {
+            throw 404;
+        }
+    } catch (int n) {
+        std::cerr << "getCommonEdgeBetweenTriangles: commonEdge can't have the value INT_MAX!\n";
     }
     return commonEdge;
 }
 
 double
 Crossfield::getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::pair<int, int> commonEdge) {
-    // there are 9 different scenarios on how reference edges can be placed in two adjacent triangles
     // refEdge shares common edge
     double alpha = 0.0, beta = alpha, kappa = alpha;
     // counter starts at one because there is always at least a PI to simulate the turn form one triangle to the other
@@ -409,26 +408,23 @@ Crossfield::getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::p
         tempHe = trimesh_.next_halfedge_handle(heh).idx();
         counter++;
     }
-    tempHe = refEdgeNeigh;
-    while (tempHe != commonEdge.second) {
+    tempHe = commonEdge.second;
+    while (tempHe != refEdgeNeigh) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(tempHe);
         beta += trimesh_.calc_sector_angle(heh);
         tempHe = trimesh_.next_halfedge_handle(heh).idx();
         counter++;
     }
-    kappa = alpha + beta + counter * M_PI;
-    // make sure kappa is in range of (-pi, pi]
-    if (kappa < -M_PI || kappa >= M_PI) {
-        kappa = std::fmod(kappa, 2 * M_PI);
-    }
-    return kappa;
+    kappa = counter * M_PI - alpha - beta;
+    // make sure kappa is in range of [-pi, pi)
+    double kappa_final = shortenKappa(kappa);
+    return kappa_final;
 }
 
 void Crossfield::addKappaHeToMap(const std::pair<int, int> commonEdge, const double kappa,
                                  std::map<int, double> &edgeKappa) {
     // if the opposite he isn't already in the list, add this he to the list
     if (edgeKappa.find(commonEdge.second) == edgeKappa.end()) {
-        std::cout << "RefHEdgeIndex: " << commonEdge.first << " kappa: " << kappa * 180 / M_PI << std::endl << std::endl;
         edgeKappa[commonEdge.first] = kappa;
     }
 }
@@ -605,7 +601,7 @@ void Crossfield::rotateLocalCoordFrame(const std::vector<int> &faces, const std:
         int position = pos_matrixA[fh];
         Point p_x = uVectorField[fh];
         Point p_y = vVectorField[fh];
-        double radians = std::fmod(_x[position], 2 * M_PI);
+        double radians = shortenKappa(_x[position]);
         std::cout << "face (" << i << ") with (" << _x[position] << "): with angle: " << radians << "(rad) and "
                   << radians * 180 / M_PI << "(deg)"
                   << std::endl;
@@ -643,4 +639,16 @@ void Crossfield::colorHEdges(const std::vector<int> &constrainedEdges) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
         heh_color(heh) = 2;
     }
+}
+
+double Crossfield::shortenKappa(const double kappa) {
+    double temp = kappa;
+    while (temp >= M_PI) {
+        temp -= 2 * M_PI;
+    }
+    while (temp < -M_PI) {
+        temp += 2 * M_PI;
+    }
+    std::cout << "kappa is: " << kappa << " and the contracted kappa is: " << temp << std::endl;
+    return temp;
 }
