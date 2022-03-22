@@ -83,6 +83,9 @@ public:
         int m = gmm::mat_nrows(C);
         max_violation = 0.;
         for (int r = 0; r < m; ++r) {
+            gmm::wsvector<double> number = C.row(r);
+            number.size();
+            x.size();
             double val = gmm::vect_sp(C.row(r), x);
             assert(!std::isnan(val));
             double nval = std::abs(val);
@@ -153,9 +156,9 @@ private:
 
     std::vector<int> getReferenceEdge(const std::vector<int> &constrainedHEdges);
 
-    void setFacesVecWithRefHe(const int i, int &temp, std::vector<int> &faces);
+    void setRefHeWithConstraint(const int i, int &temp, std::vector<int> &faces);
 
-    void setFacesVec(const int i, int &temp, std::vector<int> &faces);
+    void setRefHeWithoutConstraint(const int i, int &temp, std::vector<int> &faces);
 
     std::vector<int> getConstraints();
 

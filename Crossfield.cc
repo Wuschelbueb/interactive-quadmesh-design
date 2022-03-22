@@ -22,19 +22,22 @@ void Crossfield::createCrossfields() {
     std::vector<double> _rhsOld = _rhs;
     std::vector<int> _rhsNew;
     std::vector<int> _c_elim;
-
-    std::cout << "A (before): " << _A << std::endl;
+    std::cout << "Matrices before solver: " << std::endl;
+    std::cout << "A: " << _A << std::endl;
 
     for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
-        std::cout << "rhs position (" << i << ") with value (before calc): " << _rhs[i] << std::endl;
+        std::cout << "rhs[" << i << "] = " << _rhs[i] << std::endl;
     }
     std::cout << std::endl;
     for (std::size_t i = 0, max = _idx_to_round.size(); i != max; ++i) {
-        std::cout << "idx to round position (" << i << ") with value (before calc): " << _idx_to_round[i] << std::endl;
+        std::cout << "idx_to_round[" << i << "] = " << _idx_to_round[i] << std::endl;
     }
-    std::cout << "Constraint matrix: " << gmm::mat_nrows(_constraints) <<
-              " rows and " << gmm::mat_ncols(_constraints) << " columns:" << std::endl;
-    std::cout << "constraints: " << _constraints << std::endl << std::endl;
+    std::cout << std::endl;
+    for (std::size_t i = 0, max = _x.size(); i != max; ++i) {
+        std::cout << "_x[" << i << "] = " << _x[i] << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "constraints: " << _constraints << std::endl;
 
     COMISO::ConstrainedSolver csolver;
     csolver.misolver().set_iter_full(false);
@@ -50,25 +53,26 @@ void Crossfield::createCrossfields() {
               << "Size of edgeKappa:\t" << edgeKappa.size() << std::endl << "Size of idx:\t\t" << _idx_to_round.size()
               << std::endl;
     csolver.solve_const(_constraints, _A, _x, _rhs, _idx_to_round);
-
+    std::cout << "Matrices after solver: " << std::endl;
     rotateLocalCoordFrame(faces, _x);
-
-//    for (std::size_t i = 0, max = _x.size(); i != max; ++i) {
-//        std::cout << "_x position (" << i << ") with value: " << _x[i] << std::endl;
-//    }
-//
-//    std::cout << "A (after): " << _A << std::endl;
-//    for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
-//        std::cout << "_rhs position (" << i << ") with value (after calc): " << _rhs[i] << std::endl;
-//    }
-//
-//    std::cout << "constraints after: " << _constraints << std::endl;
+    std::cout << "A: " << _A << std::endl;
+    for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
+        std::cout << "_rhs[" << i << "] = " << _rhs[i] << std::endl;
+    }
+    std::cout << std::endl;
+    for (std::size_t i = 0, max = _x.size(); i != max; ++i) {
+        std::cout << "_x[" << i << "] = " << _x[i] << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "constraints after: " << _constraints << std::endl;
+    std::cout << std::endl;
     double energy_after = getEnergy(_A, _x, _rhs);
 //    double energy_after = getEnergy(edgeKappa, faces, _rhs, _x);
-    std::cout << "The energy after the smoothing is:\t" << energy_after << std::endl;
+    std::cout << "E_smooth = " << energy_after << std::endl;
 
     // test examples
     const double tol = 1e-6;
+    double zero = 0.;
     int n = gmm::mat_nrows(_A);
     CVectorType y(n), b(n);
     gmm::copy(_x, y);
@@ -80,6 +84,8 @@ void Crossfield::createCrossfields() {
         std::cerr << "the energies do not coincide: " << energy_after
                   << " x^T A x + b^t x = " << ea << std::endl;
     }
+    bool const_check = check_constraints(_constraints, y, zero);
+    std::cout << "constraint check: " << const_check << std::endl;
 }
 
 double Crossfield::getEnergy(const CMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_rhs) {
@@ -114,15 +120,8 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &edgeKappa, const st
         OpenMesh::FaceHandle fh = trimesh_.face_handle(hehConst);
         double constraint = constraint_angle[fh];
         int position = pos_matrixA[fh];
-        int idx = referenceHeIdx[fh];
-        OpenMesh::HalfedgeHandle hehRef = trimesh_.halfedge_handle(idx);
         _constraints(counter, position) = 1.0;
-        if (hehConst.idx() == hehRef.idx())
-            _constraints(counter, n_col) = 1.0 * constraint;
-        if (hehConst.idx() == trimesh_.prev_halfedge_handle(hehRef).idx())
-            _constraints(counter, n_col) = 1.0 * trimesh_.calc_sector_angle(hehConst) + constraint;
-        if (hehConst.idx() == trimesh_.next_halfedge_handle(hehRef).idx())
-            _constraints(counter, n_col) = 1.0 * trimesh_.calc_sector_angle(hehRef) + constraint;
+        _constraints(counter, n_col) = 1.0 * constraint;
         counter++;
     }
     dualSpanningTreeConstraint(edgeKappa, counter, pj_start, noOriginConst, _constraints);
@@ -236,7 +235,7 @@ Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, cons
     if (!trimesh_.is_boundary(opposite_heh)) {
         OpenMesh::FaceHandle opposite_fh = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(fh_it));
         double edge_weight = 1;
-        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
+//        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
         auto it = edgeKappa.find(fh_it.idx());
         auto it2 = edgeKappa.find(opposite_heh.idx());
         // it doesn't matter that edge_weight doesn't have a value, since this condition is never true,
@@ -268,7 +267,7 @@ void Crossfield::getRhsSecondHalf(double const totalArea, std::vector<double> &_
         OpenMesh::FaceHandle fh = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle opposite_fh = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
         double edge_weight = 1;
-        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
+//        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
         _rhs[counter++] = (i.second * edge_weight);
     }
 }
@@ -282,7 +281,7 @@ Crossfield::getMatrixA(const std::vector<int> &faces, const std::map<int, double
     trimesh_.request_face_status();
     auto pos_matrixA = OpenMesh::FProp<int>(trimesh_, "pos_matrixA");
     int counter = 0, iteration = 0, pj_start = faces.size(), n = edgeKappa.size() + faces.size();
-    double edge_weight = DBL_MAX, totalArea = getTotalArea(faces);
+    double edge_weight = 1, totalArea = getTotalArea(faces);
     gmm::col_matrix<gmm::wsvector<double>> _A(n, n);
     // indexes the faces from 0 to n
     // this is needed in case a face index is higher than the matrix size
@@ -298,7 +297,7 @@ Crossfield::getMatrixA(const std::vector<int> &faces, const std::map<int, double
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
         OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
-        edge_weight = ((trimesh_.calc_face_area(fh1) / 3) + (trimesh_.calc_face_area(fh2) / 3)) / totalArea;
+//        edge_weight = ((trimesh_.calc_face_area(fh1) / 3) + (trimesh_.calc_face_area(fh2) / 3)) / totalArea;
         int pos_i = pos_matrixA[fh1];
         int pos_j = pos_matrixA[fh2];
         // |  2*w_ij   -2*w_ij     pi*w_ij |
@@ -418,6 +417,7 @@ Crossfield::getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::p
     kappa = counter * M_PI - alpha - beta;
     // make sure kappa is in range of [-pi, pi)
     double kappa_final = shortenKappa(kappa);
+//    std::cout << "kappa: " << kappa_final << std::endl;
     return kappa_final;
 }
 
@@ -441,12 +441,12 @@ std::vector<int> Crossfield::getReferenceEdge(const std::vector<int> &constraine
 
     // assign constraint edges to their faces
     for (int i: constrainedHEdges) {
-        setFacesVecWithRefHe(i, temp, faces);
+        setRefHeWithConstraint(i, temp, faces);
     }
 
     // assign reference edges in range to faces
     for (int i: heInRange_) {
-        setFacesVec(i, temp, faces);
+        setRefHeWithoutConstraint(i, temp, faces);
 
     }
     colorHEdges(constrainedHEdges);
@@ -454,7 +454,7 @@ std::vector<int> Crossfield::getReferenceEdge(const std::vector<int> &constraine
     return faces;
 }
 
-void Crossfield::setFacesVecWithRefHe(const int i, int &temp, std::vector<int> &faces) {
+void Crossfield::setRefHeWithConstraint(const int i, int &temp, std::vector<int> &faces) {
     auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
     OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
     if (trimesh_.is_boundary(heh)) {
@@ -465,14 +465,15 @@ void Crossfield::setFacesVecWithRefHe(const int i, int &temp, std::vector<int> &
         // add reference edge to face
         referenceHeIdx[fh] = heh.idx();
         temp = heh.idx();
-        // set face and edge as used
+        // set face and Hedge as used
         trimesh_.status(heh).set_tagged(true);
+        trimesh_.status(trimesh_.opposite_halfedge_handle(heh)).set_tagged(true);
         trimesh_.status(fh).set_tagged(true);
         faces.push_back(fh.idx());
     }
 }
 
-void Crossfield::setFacesVec(const int i, int &temp, std::vector<int> &faces) {
+void Crossfield::setRefHeWithoutConstraint(const int i, int &temp, std::vector<int> &faces) {
     auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
     auto heh_color = OpenMesh::HProp<int>(trimesh_, "heh_color");
     OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
@@ -576,14 +577,12 @@ void Crossfield::setlocalCoordFrame(const std::vector<int> &faces) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(referenceHeIdx[fh]);
         Point u = trimesh_.calc_edge_vector(heh).normalize();
         Point v = u % trimesh_.calc_face_normal(fh);
+        v = v.normalize();
         double xComponent = OpenMesh::dot(u, u);
         double yComponent = OpenMesh::dot(u, v);
         alpha = std::atan2(yComponent, xComponent);
-//        if (alpha < 0) {
-//            alpha = 2 * M_PI + alpha;
-//        }
         constraint_angle[fh] = alpha;
-        std::cout << "theta_c (" << i << ") is: " << alpha * 180 / M_PI << " degrees." << std::endl;
+//        std::cout << "theta_c (" << i << ") is: " << alpha * 180 / M_PI << " degrees." << std::endl;
         uVectorField[fh] = u;
         vVectorField[fh] = v;
     }
@@ -602,9 +601,9 @@ void Crossfield::rotateLocalCoordFrame(const std::vector<int> &faces, const std:
         Point p_x = uVectorField[fh];
         Point p_y = vVectorField[fh];
         double radians = shortenKappa(_x[position]);
-        std::cout << "face (" << i << ") with (" << _x[position] << "): with angle: " << radians << "(rad) and "
-                  << radians * 180 / M_PI << "(deg)"
-                  << std::endl;
+//        std::cout << "face (" << i << ") with (" << _x[position] << "): with angle: " << radians << "(rad) and "
+//                  << radians * 180 / M_PI << "(deg)"
+//                  << std::endl;
         uVectorFieldRot[fh] = p_x * cos(radians) - p_y * sin(radians);
         vVectorFieldRot[fh] = p_x * sin(radians) + p_y * cos(radians);
     }
@@ -649,6 +648,6 @@ double Crossfield::shortenKappa(const double kappa) {
     while (temp < -M_PI) {
         temp += 2 * M_PI;
     }
-    std::cout << "kappa is: " << kappa << " and the contracted kappa is: " << temp << std::endl;
+//    std::cout << "kappa is: " << kappa << " and the contracted kappa is: " << temp << std::endl;
     return temp;
 }
