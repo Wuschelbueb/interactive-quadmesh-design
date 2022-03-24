@@ -104,41 +104,43 @@ private:
     getEnergy(const CMatrixType &A, const std::vector<double> &x, const std::vector<double> &b);
 
     gmm::row_matrix<gmm::wsvector<double>>
-    getConstraintMatrix(const std::map<int, double> &edgeKappa, const std::vector<int> &constraintHalfEdges,
+    getConstraintMatrix(const std::map<int, double> &heKappa, const std::vector<int> &constraintHalfEdges,
                         const std::vector<int> &faces);
 
-    void dualSpanningTreeConstraint(const std::map<int, double> &edgeKappa, int &counter, const int pj_start,
+    void dualSpanningTreeConstraint(const std::map<int, double> &heKappa, int &counter, const int pj_start,
                                     const std::vector<int> &noOriginConst,
                                     gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     std::vector<int> getNumberOriginConstraints(const std::vector<int> &faces);
 
-    std::vector<int> getIdxToRound(const std::map<int, double> &edgeKappa, const std::vector<int> &faces);
+    std::vector<int> getIdxToRound(const std::map<int, double> &heKappa, const std::vector<int> &faces);
 
-    std::vector<double> getRHS(const std::map<int, double> &edgeKappa, const std::vector<int> &faces);
+    std::vector<double> getRHS(const std::map<int, double> &heKappa, const std::vector<int> &faces);
 
     void getRhsFirstHalf(double const totalArea, const std::vector<int> &faces, std::vector<double> &_rhs,
-                         const std::map<int, double> &edgeKappa);
+                         const std::map<int, double> &heKappa);
 
-    void getSum(double const totalArea, const int i, std::vector<double> &_rhs, const std::map<int, double> &edgeKappa);
+    void getSum(double const totalArea, const int i, std::vector<double> &_rhs, const std::map<int, double> &heKappa);
 
-    double setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &edgeKappa,
+    double setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa,
                   double const totalArea);
 
     void getRhsSecondHalf(double const totalArea, std::vector<double> &_rhs,
-                          const std::map<int, double> &edgeKappa, const int facesPlusOne);
+                          const std::map<int, double> &heKappa, const int facesPlusOne);
 
     gmm::col_matrix<gmm::wsvector<double>>
-    getMatrixA(const std::vector<int> &faces, const std::map<int, double> &edgeKappa);
+    getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa);
 
-    void setPositionForFace(OpenMesh::FaceHandle fh, int &counter);
+    int getFactor(const OpenMesh::FaceHandle fh);
+
+    void setPositioninHessianForFaces(const std::map<int, double> &heKappa);
 
     std::map<int, double> getMapHeKappa(const std::vector<int> &faces);
 
     void getStatusNeigh(const OpenMesh::FaceHandle fh, const OpenMesh::FaceHandle fh_neigh,
-                        std::map<int, double> &edgeKappa);
+                        std::map<int, double> &heKappa);
 
-    void addKappaHeToMap(const std::pair<int, int> commonEdge, const double kappa, std::map<int, double> &edgeKappa);
+    void addKappaHeToMap(const std::pair<int, int> commonEdge, const double kappa, std::map<int, double> &heKappa);
 
     std::pair<int, int>
     getCommonEdgeBetweenTriangles(const OpenMesh::FaceHandle fh, const OpenMesh::FaceHandle fh_neigh,
