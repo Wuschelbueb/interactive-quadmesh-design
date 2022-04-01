@@ -69,9 +69,8 @@ private:
     MastersThesisToolbar *tool_;
 
     //store selected vertices
-    std::vector<int> includedVertices;
+    std::vector<int> heConstraints;
     std::vector<int> includedHEdges;
-    std::map<int, int> dualSpanningTree;
 
 
 };

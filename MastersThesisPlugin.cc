@@ -30,11 +30,9 @@ void MastersThesisPlugin::slot_get_boundary() {
 
         if (trimesh) {
             DijkstraDistance dijkDistMesh{*trimesh};
-            includedVertices = dijkDistMesh.calculateDijkstra(refDist);
-            if (inclBoundaryF)
-                dijkDistMesh.includeBoundaryFaces(includedVertices, refDist);
-            includedHEdges = dijkDistMesh.getHEinRange(includedVertices, refDist, inclBoundaryF);
-            dijkDistMesh.getDualGraphDijkstra(includedHEdges);
+            heConstraints = dijkDistMesh.getHeConstraints();
+            std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
+            includedHEdges = dijkDistMesh.getHeVectorOfSelection(includedNodes);
             dijkDistMesh.colorizeEdges(includedHEdges);
             // change layer of display
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
@@ -51,7 +49,7 @@ void MastersThesisPlugin::slot_get_dualGraph() {
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
         if (trimesh) {
-            Crossfield mesh{*trimesh, includedHEdges};
+            Crossfield mesh{*trimesh, includedHEdges, heConstraints};
             mesh.getCrossfield();
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
             emit updatedObject(o_it->id(), UPDATE_ALL);
