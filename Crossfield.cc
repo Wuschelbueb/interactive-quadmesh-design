@@ -9,9 +9,7 @@ void Crossfield::getCrossfield() {
 }
 
 void Crossfield::createCrossfields() {
-//    removeProperties();
-    std::vector<int> constrainedHalfEdges = getConstraints();
-    std::vector<int> faces = getReferenceEdge(constrainedHalfEdges);
+    std::vector<int> faces = getReferenceEdge(heConstraints_);
     setlocalCoordFrame(faces);
     std::map<int, double> heKappa = getMapHeKappa(faces);
     for (auto it = heKappa.cbegin(); it != heKappa.cend(); ++it) {
@@ -19,7 +17,7 @@ void Crossfield::createCrossfields() {
     }
 
     CMatrixType _H = getHessianMatrix(faces, heKappa);
-    RMatrixType _constraints = getConstraintMatrix(heKappa, constrainedHalfEdges, faces);
+    RMatrixType _constraints = getConstraintMatrix(heKappa, heConstraints_, faces);
     std::vector<double> _x(heKappa.size() + faces.size(), 0.0);
     std::vector<double> _rhs = getRHS(heKappa, faces);
     std::vector<int> _idx_to_round = getIdxToRound(heKappa, faces);
@@ -523,54 +521,6 @@ void Crossfield::setRefHeWithoutConstraint(const int i, std::vector<int> &faces)
         trimesh_.status(trimesh_.opposite_halfedge_handle(heh)).set_tagged(true);
         trimesh_.status(fh).set_tagged(true);
         faces.push_back(fh.idx());
-    }
-}
-
-
-// convert array of edges to faces and fill constraints with them
-std::vector<int> Crossfield::getConstraints() {
-    std::vector<int> constraints;
-    getSelectedEdges(constraints);
-    getSelectedHEdges(constraints);
-    getSelectedFaces(constraints);
-    return constraints;
-}
-
-void Crossfield::getSelectedEdges(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getEdgeSelection(&trimesh_);
-    for (int i: selection) {
-        // avoids duplicates with std::find
-        OpenMesh::EdgeHandle eh = trimesh_.edge_handle(i);
-        OpenMesh::HalfedgeHandle heh1 = trimesh_.halfedge_handle(eh, 0);
-        OpenMesh::HalfedgeHandle heh2 = trimesh_.halfedge_handle(eh, 1);
-        if (std::find(constraints.begin(), constraints.end(), heh1.idx()) == constraints.end()) {
-            constraints.push_back(heh1.idx());
-        }
-        if (std::find(constraints.begin(), constraints.end(), heh2.idx()) == constraints.end()) {
-            constraints.push_back(heh2.idx());
-        }
-    }
-}
-
-void Crossfield::getSelectedHEdges(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getHalfedgeSelection(&trimesh_);
-    for (int i: selection) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
-        // avoids duplicates with std::find
-        if (std::find(constraints.begin(), constraints.end(), heh.idx()) == constraints.end())
-            constraints.push_back(heh.idx());
-    }
-}
-
-void Crossfield::getSelectedFaces(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getFaceSelection(&trimesh_);
-    for (int i: selection) {
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
-            // avoids duplicates with std::find
-            if (std::find(constraints.begin(), constraints.end(), fh_it->idx()) == constraints.end())
-                constraints.push_back(fh_it->idx());
-        }
     }
 }
 

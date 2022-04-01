@@ -37,8 +37,8 @@ public:
      *      heInRange_ = heInRange;
      * }
      */
-    Crossfield(TriMesh &trimesh, std::vector<int> &heInRange)
-            : trimesh_{trimesh}, heInRange_{heInRange} {
+    Crossfield(TriMesh &trimesh, std::vector<int> &heInRange, std::vector<int> &heConstraints)
+            : trimesh_{trimesh}, heInRange_{heInRange}, heConstraints_{heConstraints} {
     }
 
     ~Crossfield() {
@@ -184,6 +184,7 @@ private:
 
     TriMesh &trimesh_;
     std::vector<int> &heInRange_;
+    std::vector<int> &heConstraints_;
 };
 
 
