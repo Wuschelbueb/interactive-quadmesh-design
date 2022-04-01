@@ -25,51 +25,35 @@ public:
     }
 
 public:
-    void getDualGraphDijkstra(std::vector<int> &includedHEdges);
-
-    std::vector<int> calculateDijkstra(const double refDist);
-
-    void includeBoundaryFaces(std::vector<int> &includedVertices, const double refDist);
 
     std::vector<int>
-    getHEinRange(const std::vector<int> &verticesInRange, const double refDist, const bool inclBoundaryF);
+    calculateDijkstra(const std::vector<int> HeConstraints, const double refDist, const bool includeBoundary);
+
+    std::vector<int> getHeVectorOfSelection(const std::vector<int> &includedNodes);
 
     void colorizeEdges(const std::vector<int> &includedHEdges);
 
+    std::vector<int> getHeConstraints();
+
 private:
 
-    int getSmallestDistPropVertex(const double refDist);
+    void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);
 
-    void initializeDistanceProperty();
+    std::vector<int> transformHehToFaces(const std::vector<int> &constraintHeh);
 
-    void initializeSelectedVertices(std::vector<int> &selectedVertices, const double zeroDistance);
+    void dijkstraDistBaryCenter(std::vector<int> &includedNodes, const double refDist);
 
-    void initializeSelectedEdges(std::vector<int> &selectedEdges, const double zeroDistance);
+    int getSmallestDistProp(const double refDist);
 
-    void initializeSelectedHEdges(std::vector<int> &selectedHEdges, const double zeroDistance);
+    void getSelectedVertices(std::vector<int> &constraints);
 
-    void initializeSelectedFaces(std::vector<int> &selectedFaces, const double zeroDistance);
+    void getSelectedEdges(std::vector<int> &constraints);
 
-    void checkVOH(const OpenMesh::VertexHandle vh, std::vector<int> &constraintHEdges,
-                  const std::vector<int> &includedHEdges);
+    void getSelectedHEdges(std::vector<int> &constraints);
 
-    void checkOccurrenceInVectors(const OpenMesh::SmartHalfedgeHandle voh_it, std::vector<int> &constraintHEdges,
-                                  const std::vector<int> &includedHEdges);
-
-    std::vector<int> createFaceVector(const std::vector<int> constraintHEdges, const std::vector<int> &includedHEdges);
-
-    void setFacesVecWithRefHe(const int i, std::vector<int> &faces, const std::vector<int> constraintHEdges);
-
-    void addFaceToVector(const OpenMesh::FaceHandle fh, std::vector<int> &faces);
-
-    void setFacesVec(const int i, std::vector<int> &faces, const std::vector<int> &includedHEdges);
-
-    void setDualGraphDijkstra(const std::vector<int> &faces);
-
-    int getFaceWithSmallestDist(const std::vector<int> &faces);
+    void getSelectedFaces(std::vector<int> &constraints);
 
     TriMesh &trimesh_;
-    std::vector<int> constraintVertices;
 };
 
 
