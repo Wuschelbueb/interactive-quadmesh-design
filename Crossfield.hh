@@ -23,7 +23,7 @@
 
 class Crossfield {
 public:
-    using Point = ACG::Vec3d;
+    using Point = OpenMesh::Vec3d;
     /// Handy typedefs sparse gmm vector matrix types
     typedef gmm::col_matrix<gmm::wsvector<double>> CMatrixType;
     typedef gmm::row_matrix<gmm::wsvector<double>> RMatrixType;
@@ -98,23 +98,22 @@ public:
 
 private:
 
-    void createCrossfields();
+    void createCrossfields(const std::vector<int> &faces);
 
     double
     getEnergy(const CMatrixType &A, const std::vector<double> &x, const std::vector<double> &b);
 
     gmm::row_matrix<gmm::wsvector<double>>
-    getConstraintMatrix(const std::map<int, double> &heKappa, const std::vector<int> &constraintHalfEdges,
-                        const std::vector<int> &faces);
+    getConstraintMatrix(const std::map<int, double> &heKappa, const std::vector<int> &faces);
 
-    void getThetaConstraints(const int n_col, int &counter, std::vector<int> &constraintEdges,
+    void getThetaConstraints(const int n_col, int &counter, std::vector<int> &faceConstraints,
                              gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     void getPJConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
                           const int &noOriginConst,
                           gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
-    int getNumberOriginConstraints(const std::vector<int> &faces);
+    int getAmountPJConstraints(const std::vector<int> &faces);
 
     std::vector<int> getIdxToRound(const std::map<int, double> &heKappa, const std::vector<int> &faces);
 
@@ -151,35 +150,27 @@ private:
 
     double getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::pair<int, int> commonEdge);
 
-    void setlocalCoordFrame(const std::vector<int> &faces);
+    void setVecFieldProp();
 
-    void rotateLocalCoordFrame(const std::vector<int> &faces, const std::vector<double> _x);
+    void getConstraintAngleAndVecField(const std::vector<int> &faces);
+
+    void setRotThetaOfVectorField(const std::vector<int> &faces, const std::vector<double> _x);
+
+    gmm::dense_matrix<double> getRotMatrix(const double theta);
 
     void colorFaces(const std::vector<int> &faces);
 
-    void colorHEdges(const std::vector<int> &constrainedEdges);
+    void colorHEdges();
 
-    std::vector<int> getReferenceEdge(const std::vector<int> &constrainedHEdges);
+    std::vector<int> getFacesVecWithRefHeProp();
 
-    void setRefHeWithConstraint(const int i, std::vector<int> &faces);
-
-    void setRefHeWithoutConstraint(const int i, std::vector<int> &faces);
-
-    std::vector<int> getConstraints();
-
-    void getSelectedVertices(std::vector<int> &constraints);
-
-    void getSelectedEdges(std::vector<int> &constraints);
-
-    void getSelectedHEdges(std::vector<int> &constraints);
-
-    void getSelectedFaces(std::vector<int> &constraints);
+    void setRefHeToFace(const int i, std::vector<int> &faces);
 
     double getTotalArea(const std::vector<int> &faces);
 
     double shortenKappa(const double kappa);
 
-    std::vector<int> getConstraintEdges(const std::vector<int> &constrainedHEdges);
+    std::vector<int> getFaceConstraints();
 
 
     TriMesh &trimesh_;
