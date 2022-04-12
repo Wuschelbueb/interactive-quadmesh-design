@@ -18,6 +18,7 @@ void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedNodes, c
     trimesh_.request_face_status();
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
+    auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     while (true) {
         double distance = 0.0;
         int faceIdx = getSmallestDistProp(refDist);
@@ -36,7 +37,7 @@ void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedNodes, c
                 && distance < distanceBaryCenter[*ff_it]) {
                 distanceBaryCenter[*ff_it] = distance;
                 origin_constraint[*ff_it] = origin_constraint[fh];
-
+                predecessor_face[*ff_it] = fh.idx();
             }
         }
     }
@@ -45,6 +46,7 @@ void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedNodes, c
 std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &constraintHeh) {
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
+    auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     double minDistance = DBL_MAX, zeroDist = 0.0;
     std::vector<int> constraintFaces;
     for (auto fh: trimesh_.faces()) {
@@ -57,6 +59,7 @@ std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &c
             constraintFaces.push_back(fh.idx());
             origin_constraint[fh] = fh.idx();
             distanceBaryCenter[fh] = zeroDist;
+            predecessor_face[fh] = fh.idx();
         }
     }
     return constraintFaces;
@@ -115,7 +118,7 @@ int DijkstraDistance::getSmallestDistProp(const double refDist) {
     double minDistance = DBL_MAX;
     int idx = INT_MAX;
     for (auto fh: trimesh_.faces()) {
-        if (!trimesh_.status(fh).tagged() && distanceBaryCenter[fh] < refDist) {
+        if (!trimesh_.status(fh).tagged() && distanceBaryCenter[fh] < refDist && distanceBaryCenter[fh] < minDistance) {
             minDistance = distanceBaryCenter[fh];
             idx = fh.idx();
         }
