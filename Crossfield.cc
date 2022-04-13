@@ -192,32 +192,31 @@ std::vector<int> Crossfield::getIdxToRound(const std::map<int, double> &heKappa,
 
 std::vector<double> Crossfield::getRHS(const std::map<int, double> &heKappa, const std::vector<int> &faces) {
     std::vector<double> _rhs(faces.size() + heKappa.size());
-    double totalArea = getTotalArea(faces);
     int facesPlusOne = faces.size();
 
-    getRhsFirstHalf(totalArea, faces, _rhs, heKappa);
-    getRhsSecondHalf(totalArea, _rhs, heKappa, facesPlusOne);
+    getRhsFirstHalf(faces, _rhs, heKappa);
+    getRhsSecondHalf(_rhs, heKappa, facesPlusOne);
 
     // scalar multiplication with vector, b*-1 = -b
     gmm::scale(_rhs, -1.0);
     return _rhs;
 }
 
-void Crossfield::getRhsFirstHalf(double const totalArea, const std::vector<int> &faces, std::vector<double> &_rhs,
+void Crossfield::getRhsFirstHalf(const std::vector<int> &faces, std::vector<double> &_rhs,
                                  const std::map<int, double> &heKappa) {
     for (int i: faces) {
-        getSum(totalArea, i, _rhs, heKappa);
+        getSum(i, _rhs, heKappa);
     }
 }
 
-void Crossfield::getSum(double const totalArea, const int i, std::vector<double> &_rhs,
+void Crossfield::getSum(const int i, std::vector<double> &_rhs,
                         const std::map<int, double> &heKappa) {
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     double sum = 0;
     OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
     for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
         // this condition is necessary because an opposite face doesn't exist if the opposite heh is boundary
-        sum += setSum(fh, *fh_it, heKappa, totalArea);
+        sum += setSum(fh, *fh_it, heKappa);
     }
     int position = positionHessianMatrix[fh];
 //    std::cout << "face index:\t\t" << fh.idx() << " \nposition in hessian matrix: " << position << std::endl;
@@ -225,24 +224,19 @@ void Crossfield::getSum(double const totalArea, const int i, std::vector<double>
 }
 
 double
-Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa,
-                   double const totalArea) {
+Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa) {
     double sum = 0;
     OpenMesh::HalfedgeHandle opposite_heh = trimesh_.opposite_halfedge_handle(fh_it);
     if (!trimesh_.is_boundary(opposite_heh)) {
         OpenMesh::FaceHandle opposite_fh = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(fh_it));
-        double edge_weight = 1;
-//        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
         auto it = heKappa.find(fh_it.idx());
         auto it2 = heKappa.find(opposite_heh.idx());
-        // it doesn't matter that edge_weight doesn't have a value, since this condition is never true,
-        // if edge_weight is valueless
         if (it != heKappa.end()) {
-            sum += (it->second * edge_weight * 2);
+            sum += (it->second * 2);
 //            std::cout << "Kappa value main triangle: " << it->second << "\nsum main:\t" << sum << std::endl;
         }
         if (it2 != heKappa.end()) {
-            sum -= (it2->second * edge_weight * 2);
+            sum -= (it2->second * 2);
 //            std::cout << "Kappa value neighbour triangle: " << it2->second << "\nsum neigh:\t" << sum << std::endl;
         }
         try {
@@ -256,16 +250,14 @@ Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, cons
     return sum;
 }
 
-void Crossfield::getRhsSecondHalf(double const totalArea, std::vector<double> &_rhs,
-                                  const std::map<int, double> &heKappa, const int facesPlusOne) {
+void
+Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, double> &heKappa, const int facesPlusOne) {
     int counter = facesPlusOne;
     for (const auto &i: heKappa) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
         OpenMesh::FaceHandle fh = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle opposite_fh = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
-        double edge_weight = 1;
-//        edge_weight = ((trimesh_.calc_face_area(fh) / 3) + (trimesh_.calc_face_area(opposite_fh) / 3)) / totalArea;
-        _rhs[counter++] = (i.second * edge_weight * M_PI);
+        _rhs[counter++] = (i.second * M_PI);
     }
 }
 
@@ -285,7 +277,6 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
     trimesh_.request_face_status();
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     int counter = 0, iteration = 0, pj_start = faces.size(), n = heKappa.size() + faces.size();
-    double edge_weight = 1, totalArea = getTotalArea(faces);
     gmm::col_matrix<gmm::wsvector<double>> _H(n, n);
     // indexes the faces from 0 to n
     // this is needed in case a face index is higher than the matrix size
@@ -298,7 +289,6 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
         int factorI = getFactor(fh1);
         int factorJ = getFactor(fh2);
-//        edge_weight = ((trimesh_.calc_face_area(fh1) 0.000001/ 3) + (trimesh_.calc_face_area(fh2) / 3)) / totalArea;
         int pos_i = positionHessianMatrix[fh1];
         int pos_j = positionHessianMatrix[fh2];
 //        std::cout << "face: " << fh1.idx() << " (" << pos_i << ") with factor: " << factorI << " and face: "
@@ -307,15 +297,15 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         // |  2*w_ij   -2*w_ij     pi*w_ij |
         // | -2*w_ij    2*w_ij    -pi*w_ij |
         // | pi*w_ij  -pi*w_ij pi^2/2*w_ij |
-        _H(pos_i, pos_i) = 2.0 * factorI * edge_weight;
-        _H(pos_j, pos_j) = 2.0 * factorJ * edge_weight;
-        _H(pos_i, pos_j) = -2.0 * edge_weight;
-        _H(pos_j, pos_i) = -2.0 * edge_weight;
-        _H(pos_i, pj_start + iteration) = M_PI * edge_weight;
-        _H(pj_start + iteration, pos_i) = M_PI * edge_weight;
-        _H(pos_j, pj_start + iteration) = -M_PI * edge_weight;
-        _H(pj_start + iteration, pos_j) = -M_PI * edge_weight;
-        _H(pj_start + iteration, pj_start + iteration) = ((pow(M_PI, 2) / 2) * edge_weight);
+        _H(pos_i, pos_i) = 2.0 * factorI;
+        _H(pos_j, pos_j) = 2.0 * factorJ;
+        _H(pos_i, pos_j) = -2.0;
+        _H(pos_j, pos_i) = -2.0;
+        _H(pos_i, pj_start + iteration) = M_PI;
+        _H(pj_start + iteration, pos_i) = M_PI;
+        _H(pos_j, pj_start + iteration) = -M_PI;
+        _H(pj_start + iteration, pos_j) = -M_PI;
+        _H(pj_start + iteration, pj_start + iteration) = ((pow(M_PI, 2) / 2));
         iteration++;
     }
     gmm::clean(_H, 1E-10);
@@ -576,14 +566,6 @@ gmm::dense_matrix<double> Crossfield::getRotMatrix(const double theta) {
     rotationMatrix(2, 2) = 1;
     return rotationMatrix;
 }
-
-double Crossfield::getTotalArea(const std::vector<int> &faces) {
-    double totalarea = 0.0;
-    for (int i: faces)
-        totalarea += trimesh_.calc_face_area(trimesh_.face_handle(i));
-    return totalarea;
-}
-
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
     auto face_color = OpenMesh::FProp<int>(trimesh_, "face_color");

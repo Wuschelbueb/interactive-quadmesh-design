@@ -119,15 +119,14 @@ private:
 
     std::vector<double> getRHS(const std::map<int, double> &heKappa, const std::vector<int> &faces);
 
-    void getRhsFirstHalf(double const totalArea, const std::vector<int> &faces, std::vector<double> &_rhs,
+    void getRhsFirstHalf(const std::vector<int> &faces, std::vector<double> &_rhs,
                          const std::map<int, double> &heKappa);
 
-    void getSum(double const totalArea, const int i, std::vector<double> &_rhs, const std::map<int, double> &heKappa);
+    void getSum(const int i, std::vector<double> &_rhs, const std::map<int, double> &heKappa);
 
-    double setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa,
-                  double const totalArea);
+    double setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa);
 
-    void getRhsSecondHalf(double const totalArea, std::vector<double> &_rhs,
+    void getRhsSecondHalf(std::vector<double> &_rhs,
                           const std::map<int, double> &heKappa, const int facesPlusOne);
 
     RMatrixType getMatrixA(const std::vector<int> &faces, const std::map<int, double> &heKappa);
@@ -165,8 +164,6 @@ private:
     std::vector<int> getFacesVecWithRefHeProp();
 
     void setRefHeToFace(const int i, std::vector<int> &faces);
-
-    double getTotalArea(const std::vector<int> &faces);
 
     double shortenKappa(const double kappa);
 
