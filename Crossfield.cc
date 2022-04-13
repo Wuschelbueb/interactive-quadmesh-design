@@ -14,7 +14,6 @@ void Crossfield::getCrossfield() {
     std::vector<double> _x(heKappa.size() + faces.size(), 0.0);
     std::vector<double> _rhs = getRHS(heKappa, faces);
     std::vector<int> _idx_to_round = getIdxToRound(heKappa, faces);
-
 //    std::cout << "Matrices before solver: " << std::endl;
 //    std::cout << "A: " << _H << std::endl;
 //
@@ -31,7 +30,6 @@ void Crossfield::getCrossfield() {
 //    }
 //    std::cout << std::endl;
 //    std::cout << "constraints: " << _constraints << std::endl;
-
     COMISO::ConstrainedSolver csolver;
     csolver.misolver().set_iter_full(false);
     csolver.misolver().set_local_iters(50000);
@@ -48,6 +46,10 @@ void Crossfield::getCrossfield() {
     csolver.solve(_constraints, _H, _x, _rhs, _idx_to_round);
     setRotThetaOfVectorField(faces, _x);
     createCrossfields(faces);
+    RMatrixType _A = getMatrixA(faces, heKappa);
+    std::vector<double> _b = getVectorb(heKappa);
+    double energy = getEnergy(_A, _x, _b);
+    std::cout << "Energy: " << energy << std::endl;
     //    std::cout << "Matrices after solver: " << std::endl;
 //    std::cout << "A: " <  < _H << std::endl;
 //    for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
@@ -59,10 +61,6 @@ void Crossfield::getCrossfield() {
 //    }
 //    std::cout << std::endl;
 //    std::cout << "constraints after: " << _constraints << std::endl;
-//    std::cout << std::endl;
-//    double energy_after = getEnergy(_H, _x, _rhs);
-//    std::cout << "E_smooth = " << energy_after << std::endl;
-
 }
 
 void Crossfield::createCrossfields(const std::vector<int> &faces) {
@@ -85,13 +83,38 @@ void Crossfield::createCrossfields(const std::vector<int> &faces) {
 
 }
 
-double Crossfield::getEnergy(const CMatrixType &_H, const std::vector<double> &_x, const std::vector<double> &_rhs) {
-    int n = gmm::mat_nrows(_H);
-    CVectorType temp(n);
-    gmm::mult(_H, _x, temp); // temp = H*x
-    double p = gmm::vect_sp(_x, temp); // x^T * temp = x^T * H * x
-    double q = gmm::vect_sp(_x, _rhs); // scalar product
-    return (p + q);
+double Crossfield::getEnergy(const RMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_b) {
+    std::vector<double> _energy(_b.size());
+    double finalEnergy = 0;
+    gmm::mult(_A, _x, _b,_energy);
+    gmm::clean(_energy, 1E-10);
+    return gmm::vect_sp(_energy, _energy);
+}
+
+Crossfield::RMatrixType Crossfield::getMatrixA(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
+    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
+    int columns = faces.size() + heKappa.size(), rows = heKappa.size(), counter = 0, pj_start = faces.size();
+    RMatrixType _A(rows, columns);
+    for (auto i: heKappa) {
+        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
+        OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
+        OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
+        int pos_i = positionHessianMatrix[fh1];
+        int pos_j = positionHessianMatrix[fh2];
+        _A(counter, pos_i) = 1;
+        _A(counter, pos_j) = -1;
+        _A(counter, pj_start + counter) = (M_PI / 2);
+        counter++;
+    }
+    return _A;
+}
+
+std::vector<double> Crossfield::getVectorb(const std::map<int, double> &heKappa) {
+    std::vector<double> _b;
+    for (auto i: heKappa) {
+        _b.push_back(i.second);
+    }
+    return _b;
 }
 
 gmm::row_matrix<gmm::wsvector<double>>
@@ -261,13 +284,6 @@ Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, doub
     }
 }
 
-//Crossfield::RMatrixType Crossfield::getMatrixA(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
-//    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
-//    int rows = faces.size() + heKappa.size(), columns = heKappa.size();
-//    RMatrixType A(rows, columns);
-//
-//}
-
 Crossfield::CMatrixType
 Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
     trimesh_.release_halfedge_status();
@@ -309,7 +325,6 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         iteration++;
     }
     gmm::clean(_H, 1E-10);
-
     return _H;
 }
 
@@ -602,10 +617,10 @@ double Crossfield::shortenKappa(const double kappa) {
     return temp;
 }
 
-OpenMesh::Vec3d Crossfield::multPointWithRotMatrix(const Point rotVec, const double angle) {
+Crossfield::Point Crossfield::multPointWithRotMatrix(const Point rotVec, const double angle) {
     gmm::dense_matrix<double> rotationMatrix = getRotMatrix(angle);
     std::vector<double> pointToVec = {rotVec[0], rotVec[1], rotVec[2]};
-    std::vector<double> rotVecByAngle(3, 0);
+    std::vector<double> rotVecByAngle(rotVec.size(), 0);
     gmm::mult(rotationMatrix, pointToVec, rotVecByAngle);
     return {rotVecByAngle[0], rotVecByAngle[1], rotVecByAngle[2]};
 }
