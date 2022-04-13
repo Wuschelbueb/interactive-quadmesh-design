@@ -170,6 +170,8 @@ private:
 
     double shortenKappa(const double kappa);
 
+    Point multPointWithRotMatrix(const Point rotVec, const double angle = 1.0);
+
     std::vector<int> getFaceConstraints();
 
 

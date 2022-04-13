@@ -75,12 +75,8 @@ void Crossfield::createCrossfields(const std::vector<int> &faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         Point rotVec = uVectorFieldRot[fh];
         for (int j = 1; j < 4; ++j) {
-            gmm::dense_matrix<double> rotationMatrix = getRotMatrix(M_PI / 2 * j);
-            //TODO create function which includes the next 3 lines, i.e. point to vec with multiplication; maybe vecMultiplication
-            std::vector<double> pointToVec = {rotVec[0], rotVec[1], rotVec[2]};
-            std::vector<double> rotVecByPi(3, 0);
-            gmm::mult(rotationMatrix, pointToVec, rotVecByPi);
-            PiRotVec.push_back({rotVecByPi[0], rotVecByPi[1], rotVecByPi[2]});
+            Point temp = multPointWithRotMatrix(rotVec, M_PI / 2 * j);
+            PiRotVec.push_back(temp);
         }
         uVectorFieldRotOne[fh] = PiRotVec[0];
         uVectorFieldRotTwo[fh] = PiRotVec[1];
@@ -557,11 +553,8 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
         int position = positionHessianMatrix[fh];
         Point p_x = uVectorField[fh];
         double theta = shortenKappa(_x[position]);
-        gmm::dense_matrix<double> rotationMatrix = getRotMatrix(theta);
-        std::vector<double> pointToVec = {p_x[0], p_x[1], p_x[2]};
-        std::vector<double> rotVec(3, 0);
-        gmm::mult(rotationMatrix, pointToVec, rotVec);
-        uVectorFieldRot[fh] = {rotVec[0], rotVec[1], rotVec[2]};
+        Point temp = multPointWithRotMatrix(p_x, theta);
+        uVectorFieldRot[fh] = temp;
 //        std::cout << "face (" << i << ") with position " << position << " and value (" << _x[position]
 //                  << "): with angle: " << theta << "(rad) and "
 //                  << theta * 180 / M_PI << "(deg)"
@@ -625,4 +618,12 @@ double Crossfield::shortenKappa(const double kappa) {
     }
 //    std::cout << "kappa is: " << kappa << " and the contracted kappa is: " << temp << std::endl;
     return temp;
+}
+
+OpenMesh::Vec3d Crossfield::multPointWithRotMatrix(const Point rotVec, const double angle) {
+    gmm::dense_matrix<double> rotationMatrix = getRotMatrix(angle);
+    std::vector<double> pointToVec = {rotVec[0], rotVec[1], rotVec[2]};
+    std::vector<double> rotVecByAngle(3, 0);
+    gmm::mult(rotationMatrix, pointToVec, rotVecByAngle);
+    return {rotVecByAngle[0], rotVecByAngle[1], rotVecByAngle[2]};
 }
