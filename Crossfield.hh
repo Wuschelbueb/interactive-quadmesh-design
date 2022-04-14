@@ -107,8 +107,6 @@ private:
 
     void setRotThetaOfVectorField(const std::vector<int> &faces, const std::vector<double> _x);
 
-    gmm::dense_matrix<double> getRotMatrix(const double theta);
-
     void colorFaces(const std::vector<int> &faces);
 
     void colorHEdges();
@@ -119,7 +117,7 @@ private:
 
     double shortenKappa(const double kappa);
 
-    Point multPointWithRotMatrix(const Point rotVec, const double angle = 1.0);
+    Point rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta = 1.0);
 
     std::vector<int> getFaceConstraints();
 

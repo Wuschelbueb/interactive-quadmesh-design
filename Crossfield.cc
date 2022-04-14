@@ -64,29 +64,28 @@ void Crossfield::getCrossfield() {
 }
 
 void Crossfield::createCrossfields(const std::vector<int> &faces) {
-    auto uVectorFieldRot = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRot");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
     auto uVectorFieldRotThree = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree");
+    auto uVectorFieldRotFour = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour");
     for (int i: faces) {
         std::vector<Point> PiRotVec;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        Point rotVec = uVectorFieldRot[fh];
+        Point rotVec = uVectorFieldRotOne[fh];
         for (int j = 1; j < 4; ++j) {
-            Point temp = multPointWithRotMatrix(rotVec, M_PI / 2 * j);
+            Point temp = rotPointWithRotMatrix(fh, rotVec, M_PI / 2 * j);
             PiRotVec.push_back(temp);
         }
-        uVectorFieldRotOne[fh] = PiRotVec[0];
-        uVectorFieldRotTwo[fh] = PiRotVec[1];
-        uVectorFieldRotThree[fh] = PiRotVec[2];
+        uVectorFieldRotTwo[fh] = PiRotVec[0];
+        uVectorFieldRotThree[fh] = PiRotVec[1];
+        uVectorFieldRotFour[fh] = PiRotVec[2];
     }
-
 }
 
 double Crossfield::getEnergy(const RMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_b) {
     std::vector<double> _energy(_b.size());
     double finalEnergy = 0;
-    gmm::mult(_A, _x, _b,_energy);
+    gmm::mult(_A, _x, _b, _energy);
     gmm::clean(_energy, 1E-10);
     return gmm::vect_sp(_energy, _energy);
 }
@@ -216,10 +215,8 @@ std::vector<int> Crossfield::getIdxToRound(const std::map<int, double> &heKappa,
 std::vector<double> Crossfield::getRHS(const std::map<int, double> &heKappa, const std::vector<int> &faces) {
     std::vector<double> _rhs(faces.size() + heKappa.size());
     int facesPlusOne = faces.size();
-
     getRhsFirstHalf(faces, _rhs, heKappa);
     getRhsSecondHalf(_rhs, heKappa, facesPlusOne);
-
     // scalar multiplication with vector, b*-1 = -b
     gmm::scale(_rhs, -1.0);
     return _rhs;
@@ -392,16 +389,10 @@ void Crossfield::getStatusNeigh(const OpenMesh::FaceHandle fh, const OpenMesh::F
         int refEdgeMain = referenceHeIdx[fh];
         int refEdgeNeigh = referenceHeIdx[fh_neigh];
         // get the common edge between the triangles
-//        std::cout << "\t\t\tcall getCommonEdge\n";
         commonEdge = getCommonEdgeBetweenTriangles(fh, fh_neigh);
 //        std::cout << "\t\t\tcall getKappa, refEdgeMain: " << refEdgeMain << " and refEdgeNeigh: " << refEdgeNeigh
 //        << std::endl;
         kappa = getKappa(refEdgeMain, refEdgeNeigh, commonEdge);
-
-        // example test kappa
-//        bool kappa_ok = testKappa(refEdgeMain, refEdgeNeigh, commonEdge);
-//        assert(kappa_ok);
-//        std::cout << "\t\t\tcall addKappaHeToMap\n";
         addKappaHeToMap(commonEdge, kappa, heKappa);
     }
 }
@@ -514,17 +505,17 @@ void Crossfield::setRefHeToFace(const int i, std::vector<int> &faces) {
 
 void Crossfield::setVecFieldProp() {
     auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
-    auto uVectorFieldRot = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRot");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
     auto uVectorFieldRotThree = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree");
+    auto uVectorFieldRotFour = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour");
     Point zero_point = {0, 0, 0};
     for (TriMesh::FaceIter f_it = trimesh_.faces_begin(); f_it != trimesh_.faces_end(); ++f_it) {
         uVectorField[*f_it] = zero_point;
-        uVectorFieldRot[*f_it] = zero_point;
         uVectorFieldRotOne[*f_it] = zero_point;
         uVectorFieldRotTwo[*f_it] = zero_point;
         uVectorFieldRotThree[*f_it] = zero_point;
+        uVectorFieldRotFour[*f_it] = zero_point;
     }
 }
 
@@ -552,34 +543,19 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
     auto crossField = OpenMesh::FProp<std::vector<Point>>(trimesh_, "crossField");
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
-    auto uVectorFieldRot = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRot");
+    auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         int position = positionHessianMatrix[fh];
         Point p_x = uVectorField[fh];
         double theta = shortenKappa(_x[position]);
-        Point temp = multPointWithRotMatrix(p_x, theta);
-        uVectorFieldRot[fh] = temp;
+        Point temp = rotPointWithRotMatrix(fh, p_x, theta);
+        uVectorFieldRotOne[fh] = temp.normalize();
 //        std::cout << "face (" << i << ") with position " << position << " and value (" << _x[position]
 //                  << "): with angle: " << theta << "(rad) and "
 //                  << theta * 180 / M_PI << "(deg)"
 //                  << std::endl;
     }
-}
-
-gmm::dense_matrix<double> Crossfield::getRotMatrix(const double theta) {
-    // rotation is counterclockwise since we calculate angle counterclockwise
-    gmm::dense_matrix<double> rotationMatrix(3, 3);
-    rotationMatrix(0, 0) = cos(theta);
-    rotationMatrix(0, 1) = sin(theta);
-    rotationMatrix(0, 2) = 0;
-    rotationMatrix(1, 0) = -sin(theta);
-    rotationMatrix(1, 1) = cos(theta);
-    rotationMatrix(1, 2) = 0;
-    rotationMatrix(2, 0) = 0;
-    rotationMatrix(2, 1) = 0;
-    rotationMatrix(2, 2) = 1;
-    return rotationMatrix;
 }
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
@@ -617,10 +593,10 @@ double Crossfield::shortenKappa(const double kappa) {
     return temp;
 }
 
-Crossfield::Point Crossfield::multPointWithRotMatrix(const Point rotVec, const double angle) {
-    gmm::dense_matrix<double> rotationMatrix = getRotMatrix(angle);
-    std::vector<double> pointToVec = {rotVec[0], rotVec[1], rotVec[2]};
-    std::vector<double> rotVecByAngle(rotVec.size(), 0);
-    gmm::mult(rotationMatrix, pointToVec, rotVecByAngle);
-    return {rotVecByAngle[0], rotVecByAngle[1], rotVecByAngle[2]};
+Crossfield::Point
+Crossfield::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta) {
+    Point f_normal = trimesh_.calc_face_normal(fh).normalize();
+    //Rodrigues rotation formula
+    Point rotVec = vec * cos(theta) - (f_normal % vec) * sin(theta) + f_normal * (vec | f_normal) * (1 - cos(theta));
+    return rotVec;
 }
