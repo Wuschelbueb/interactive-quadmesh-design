@@ -15,7 +15,7 @@ void Crossfield::getCrossfield() {
     std::vector<double> _rhs = getRHS(heKappa, faces);
     std::vector<int> _idx_to_round = getIdxToRound(heKappa, faces);
 //    std::cout << "Matrices before solver: " << std::endl;
-//    std::cout << "A: " << _H << std::endl;
+//    std::cout << "H: " << _H << std::endl;
 //
 //    for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
 //        std::cout << "rhs[" << i << "] = " << _rhs[i] << std::endl;
@@ -49,9 +49,9 @@ void Crossfield::getCrossfield() {
     RMatrixType _A = getMatrixA(faces, heKappa);
     std::vector<double> _b = getVectorb(heKappa);
     double energy = getEnergy(_A, _x, _b);
-    std::cout << "Energy: " << energy << std::endl;
-    //    std::cout << "Matrices after solver: " << std::endl;
-//    std::cout << "A: " <  < _H << std::endl;
+//    std::cout << "Energy: " << energy << std::endl;
+//        std::cout << "Matrices after solver: " << std::endl;
+//    std::cout << "H: " << _H << std::endl;
 //    for (std::size_t i = 0, max = _rhs.size(); i != max; ++i) {
 //        std::cout << "_rhs[" << i << "] = " << _rhs[i] << std::endl;
 //    }
@@ -300,8 +300,8 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
         OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
-        int factorI = getFactor(fh1);
-        int factorJ = getFactor(fh2);
+        int factorI = getFactor(fh1, faces);
+        int factorJ = getFactor(fh2, faces);
         int pos_i = positionHessianMatrix[fh1];
         int pos_j = positionHessianMatrix[fh2];
 //        std::cout << "face: " << fh1.idx() << " (" << pos_i << ") with factor: " << factorI << " and face: "
@@ -325,10 +325,11 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
     return _H;
 }
 
-int Crossfield::getFactor(const OpenMesh::FaceHandle fh) {
+int Crossfield::getFactor(const OpenMesh::FaceHandle fh, const std::vector<int> &faces) {
     int factor = 0;
     for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
-        factor++;
+        if ((std::find(faces.begin(), faces.end(), ff_it->idx()) != faces.end()))
+            factor++;
     }
     return factor;
 }

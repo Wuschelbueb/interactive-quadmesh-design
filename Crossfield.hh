@@ -85,7 +85,7 @@ private:
 
     CMatrixType getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa);
 
-    int getFactor(const OpenMesh::FaceHandle fh);
+    int getFactor(const OpenMesh::FaceHandle fh, const std::vector<int> &faces);
 
     void setPositionInHessianForFaces(const std::map<int, double> &heKappa);
 
