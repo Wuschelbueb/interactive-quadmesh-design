@@ -105,6 +105,10 @@ private:
 
     void getConstraintAngleAndVecField(const std::vector<int> &faces);
 
+    void getCrossFieldIdx(const std::vector<int> &faces, const std::map<int, double> &heKappa, const std::vector<double> &_x);
+
+    void setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize, const std::map<int, double> &heKappa,  const std::vector<double> &_x);
+
     void setRotThetaOfVectorField(const std::vector<int> &faces, const std::vector<double> _x);
 
     void colorFaces(const std::vector<int> &faces);
