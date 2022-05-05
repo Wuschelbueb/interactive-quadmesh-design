@@ -584,6 +584,22 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
     bool checkOHe = true;
     double sumKappa = 0.0, angleDefect = 0.0, sumPJ = 0.0, intValBaseIdx = 0.0;
+    //gets sumKappa, angleDefect and sumPJ values
+    getCrFldVal(fv_it, sumKappa, angleDefect, sumPJ, faceSize, heKappa, _x);
+    intValBaseIdx = (1 / (2 * M_PI)) * ((2 * M_PI - angleDefect) + sumKappa);
+    double crossFldIdx = intValBaseIdx + (sumPJ / 4);
+    //clean values close to zero
+    if (crossFldIdx < 1E-10 && crossFldIdx > -1E-10) {
+        crossFldIdx = 0;
+    }
+    crossFieldIdx[*fv_it] = crossFldIdx;
+    trimesh_.status(*fv_it).set_tagged(true);
+}
+
+void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
+                             const int faceSize, const std::map<int, double> &heKappa,
+                             const std::vector<double> &_x) {
+    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
     for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
         int position = 0;
         OpenMesh::HalfedgeHandle oppHe = trimesh_.opposite_halfedge_handle(*vohe_it);
@@ -595,20 +611,15 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
             position = std::distance(std::begin(heKappa), it);
             //with position and faceSize we can extract p_ij value of _x vector (solution)
             sumPJ += _x[faceSize + position];
+            periodJump[*vohe_it] = _x[faceSize + position];
             sumKappa += it->second;
         } else if (it2 != heKappa.end()) {
             position = std::distance(std::begin(heKappa), it2);
             sumPJ -= _x[faceSize + position];
+            periodJump[oppHe] = _x[faceSize + position];
             sumKappa -= it2->second;
         }
     }
-    intValBaseIdx = (1 / (2 * M_PI)) * ((2 * M_PI - angleDefect) + sumKappa);
-    crossFieldIdx[*fv_it] = intValBaseIdx + (sumPJ / 4);
-    trimesh_.status(*fv_it).set_tagged(true);
-//    std::cout << "\nVertex: " << fv_it->idx() << " with\nangle defect: " << (2 * M_PI - angleDefect) / (2 * M_PI)
-//              << "\nsumKappa: " << sumKappa / (2 * M_PI)
-//              << "\nInteger Value base Index: " << intValBaseIdx << "\nCrossfield Idx is: " << crossFieldIdx[*fv_it]
-//              << std::endl;
 }
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
