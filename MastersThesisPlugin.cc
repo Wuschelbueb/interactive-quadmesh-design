@@ -1,6 +1,7 @@
 #include "MastersThesisPlugin.hh"
 #include "DijkstraDistance.hh"
 #include "Crossfield.hh"
+#include "GlobalParametrization.hh"
 
 typedef OpenMesh::TriMesh_ArrayKernelT<> MyMesh;
 
@@ -53,6 +54,8 @@ void MastersThesisPlugin::slot_get_dualGraph() {
             mesh.getCrossfield();
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
             emit updatedObject(o_it->id(), UPDATE_ALL);
+            GlobalParametrization mesh2{*trimesh};
+            mesh2.getGlobalParam();
         }
     }
 }
