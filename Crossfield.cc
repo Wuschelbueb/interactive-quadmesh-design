@@ -470,7 +470,6 @@ std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
     trimesh_.request_face_status();
     std::vector<int> faces;
     int temp = INT_MAX;
-
     // assign constraint edges to faces as property
     for (int i: heConstraints_) {
         setRefHeToFace(i, faces);
@@ -559,7 +558,6 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
 
 void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<int, double> &heKappa,
                                   const std::vector<double> &_x) {
-    //TODO works for a cube but nothing else
     trimesh_.release_vertex_status();
     // request to change the status
     trimesh_.request_vertex_status();
@@ -623,13 +621,13 @@ void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, d
 }
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
-    auto FaceSel = OpenMesh::FProp<int>(trimesh_, "FaceSel");
+    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
     for (TriMesh::FaceIter f_it = trimesh_.faces_begin(); f_it != trimesh_.faces_end(); ++f_it) {
-        FaceSel[*f_it] = 0;
+        FaceSel[*f_it] = false;
     }
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        FaceSel[fh] = 1;
+        FaceSel[fh] = true;
     }
 }
 

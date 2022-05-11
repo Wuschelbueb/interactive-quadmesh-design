@@ -47,6 +47,27 @@ public:
     void getGlobalParam();
 
 private:
+
+    void meshCutting();
+
+    void getFaceVec(std::vector<int> &faces);
+
+    int createVertexPosParamDom(std::vector<int> &faces);
+
+    void setUpLocFaceCoordSys(const std::vector<int> &faces);
+
+    void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, int &counter, std::vector<Point> &edges);
+
+    void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C, const std::vector<Point> &edges);
+
+    gmm::col_matrix<std::vector<double>> createCMatrix();
+
+    std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSize);
+
+    CMatrixType getHessian(const std::vector<int> &faces, const int rhsSize);
+
+    void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV, std::vector<double> &_rhs);
+
     TriMesh &trimesh_;
 
 };
