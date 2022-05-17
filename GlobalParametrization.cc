@@ -3,24 +3,109 @@
 //
 
 #include "GlobalParametrization.hh"
+#include "DijkstraDistance.hh"
 
 void GlobalParametrization::getGlobalParam() {
     std::vector<int> faces;
     getFaceVec(faces);
     // *2 because we have a V and a U param
-    int rhsSize = createVertexPosParamDom(faces) * 2;
+    int nbVerticesUaV = createVertexPosParamDom(faces) * 2;
     setUpLocFaceCoordSys(faces);
-    std::vector<double> _x(rhsSize);
-    std::vector<double> _rhs = getRhs(faces, rhsSize);
-    CMatrixType _H = getHessian(faces, rhsSize);
+    DijkstraDistance dualGraph(trimesh_);
+    dualGraph.getDualGraph(faces);
+    std::vector<double> _x(nbVerticesUaV);
+    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV);
+    CMatrixType _H = getHessian(faces, nbVerticesUaV);
+    std::vector<int> complementHEdges;
+    getComplementMeshSel(complementHEdges);
+    removeOpenPaths(complementHEdges);
+    colorCompEdges(complementHEdges);
     std::cout << "ehllo world\n";
+}
+
+void GlobalParametrization::removeOpenPaths(std::vector<int> &complementHEdges) {
+    trimesh_.release_halfedge_status();
+    trimesh_.request_halfedge_status();
+    int currentIter = complementHEdges.size(), prevIter = INT_MAX;
+    while (currentIter != prevIter) {
+        for (int i: complementHEdges) {
+            removeEdgeFromGraph(i, complementHEdges);
+        }
+        prevIter = currentIter;
+        currentIter = complementHEdges.size();
+    }
+}
+
+void GlobalParametrization::removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges) {
+    auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
+    OpenMesh::HalfedgeHandle he = trimesh_.halfedge_handle(i);
+    OpenMesh::HalfedgeHandle ohe = trimesh_.opposite_halfedge_handle(he);
+    OpenMesh::VertexHandle vh = trimesh_.to_vertex_handle(he);
+    int counter = 0;
+    for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
+        if ((std::find(complementHEdges.begin(), complementHEdges.end(), voh_it->idx()) != complementHEdges.end())) {
+            counter++;
+        }
+    }
+    //valence check
+    if (counter == 1) {
+        complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), he.idx()),
+                               complementHEdges.end());
+        complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), ohe.idx()),
+                               complementHEdges.end());
+    }
+}
+
+void GlobalParametrization::colorCompEdges(const std::vector<int> &complementEdges) {
+    auto colorBlub = OpenMesh::EProp<int>(trimesh_, "colorBlub");
+    for (auto eh: trimesh_.edges()) {
+        colorBlub[eh] = 0;
+    }
+    for (int i: complementEdges) {
+        OpenMesh::HalfedgeHandle he = trimesh_.halfedge_handle(i);
+        OpenMesh::EdgeHandle eh = trimesh_.edge_handle(he);
+        colorBlub[eh] = 1;
+    }
+}
+
+void GlobalParametrization::getComplementMeshSel(std::vector<int> &complementHEdges) {
+    trimesh_.release_halfedge_status();
+    trimesh_.request_halfedge_status();
+    std::vector<int> notValidEdges = getEdgesFromDualSpanningTree();
+    for (auto he: trimesh_.halfedges()) {
+        if (!trimesh_.status(he).tagged()) {
+            complementHEdges.push_back(he.idx());
+        }
+    }
+}
+
+std::vector<int> GlobalParametrization::getEdgesFromDualSpanningTree() {
+    auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
+    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
+    std::vector<int> excludedEdges;
+    for (auto face: trimesh_.faces()) {
+        if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && FaceSel[face] == true) {
+            OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
+            for (TriMesh::FaceHalfedgeIter fhe_it = trimesh_.fh_iter(face); fhe_it.is_valid(); ++fhe_it) {
+                OpenMesh::HalfedgeHandle oheh = trimesh_.opposite_halfedge_handle(*fhe_it);
+                for (TriMesh::FaceHalfedgeIter fhe_pre_it = trimesh_.fh_iter(
+                        fh_pre); fhe_pre_it.is_valid(); ++fhe_pre_it) {
+                    if (fhe_pre_it->idx() == oheh.idx()) {
+                        trimesh_.status(oheh).set_tagged(true);
+                        trimesh_.status(*fhe_it).set_tagged(true);
+                    }
+                }
+            }
+        }
+    }
+    return excludedEdges;
 }
 
 void GlobalParametrization::getFaceVec(std::vector<int> &faces) {
     auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
-    for (TriMesh::FaceIter f_it = trimesh_.faces_begin(); f_it != trimesh_.faces_end(); ++f_it) {
-        if (FaceSel[*f_it] = true) {
-            faces.push_back(f_it->idx());
+    for (auto face: trimesh_.faces()) {
+        if (FaceSel[face] == true) {
+            faces.push_back(face.idx());
         }
     }
 }
@@ -111,13 +196,13 @@ gmm::col_matrix<std::vector<double>> GlobalParametrization::createCMatrix() {
     return _C;
 }
 
-std::vector<double> GlobalParametrization::getRhs(const std::vector<int> &faces, const int rhsSize) {
+std::vector<double> GlobalParametrization::getRhs(const std::vector<int> &faces, const int nbVerticesUaV) {
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
-    std::vector<double> _rhs(rhsSize);
+    std::vector<double> _rhs(nbVerticesUaV);
 
     // add vertex numbering in order to know where to start
-    // use rhsSize and lhs formulas with dkm -> dkm is entry in D matrix
+    // use nbVerticesUaV and lhs formulas with dkm -> dkm is entry in D matrix
     // utk is entry of vectorRotOne
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
@@ -135,39 +220,90 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const
                                             std::vector<double> &_rhs) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
-    auto localVUi = OpenMesh::FProp<std::vector<int>>(trimesh_, "localVUi");
     auto basisTransformationMtx = OpenMesh::FProp<gmm::row_matrix<std::vector<double>>>(trimesh_,
                                                                                         "basisTransformationMtx");
-    std::vector<int> vertices = localVUi[fh];
     gmm::row_matrix<std::vector<double> > _D = basisTransformationMtx[fh];
-    double weight = 1, area = 0, h = 1, col = 0;
+    double weight = 1, area = trimesh_.calc_face_area(fh), h = 1, col = 0;
     for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
         //map U coordinates to vertices
-        if (fv_it->idx() == vertices[0]) {
-            col = 0;
-        } else if (fv_it->idx() == vertices[1]) {
-            col = 1;
-        } else if (fv_it->idx() == vertices[2]) {
-            col = 2;
-        }
+        col = mapLocCoordToGlobCoordSys(fh, *fv_it);
         //get sum of ut*dkm
         double sum = 0;
         for (int j = 0; j < 3; ++j) {
             sum += CrossFieldAxis[j] * basisTransformationMtx[fh][j][col];
         }
-
         //check if U or V position is needed
-        int pos;
-        if (flagUorV) {
-            pos = vertexPosUi[*fv_it];
-        } else {
-            pos = vertexPosVi[*fv_it];
-        }
-
+        int pos = (flagUorV) ? vertexPosUi[*fv_it] : vertexPosVi[*fv_it];
         _rhs[pos] += 2 * weight * area * h * sum;
     }
 }
 
-GlobalParametrization::CMatrixType GlobalParametrization::getHessian(const std::vector<int> &faces, const int rhsSize) {
+GlobalParametrization::CMatrixType
+GlobalParametrization::getHessian(const std::vector<int> &faces, const int nbVerticesUaV) {
+    CMatrixType _H(nbVerticesUaV, nbVerticesUaV);
+    for (int i: faces) {
+        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
+        getDiaEntriesHessian(fh, _H);
+//        getEntriesHessian(fh, _H);
+    }
+    return _H;
+}
 
+//map U coordinates to vertices
+int GlobalParametrization::mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh) {
+    auto localVUi = OpenMesh::FProp<std::vector<int>>(trimesh_, "localVUi");
+    double column = 0;
+    std::vector<int> vertices = localVUi[fh];
+    if (vh.idx() == vertices[0]) {
+        column = 0;
+    } else if (vh.idx() == vertices[1]) {
+        column = 1;
+    } else if (vh.idx() == vertices[2]) {
+        column = 2;
+    }
+    return column;
+}
+
+void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H) {
+    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    auto basisTransformationMtx = OpenMesh::FProp<gmm::row_matrix<std::vector<double>>>(trimesh_,
+                                                                                        "basisTransformationMtx");
+    double weight = 1, area = trimesh_.calc_face_area(fh), h = 1, col;
+    for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
+        col = mapLocCoordToGlobCoordSys(fh, *fv_it);
+        double sum = 0;
+        for (int j = 0; j < 3; ++j) {
+            sum += basisTransformationMtx[fh][j][col] * basisTransformationMtx[fh][j][col];
+        }
+        _H(vertexPosUi[*fv_it], vertexPosUi[*fv_it]) += 2 * weight * area * pow(h, 2) * sum;
+        _H(vertexPosVi[*fv_it], vertexPosVi[*fv_it]) += 2 * weight * area * pow(h, 2) * sum;
+    }
+}
+
+void GlobalParametrization::getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H) {
+    //doesn't work yet
+    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    auto basisTransformationMtx = OpenMesh::FProp<gmm::row_matrix<std::vector<double>>>(trimesh_,
+                                                                                        "basisTransformationMtx");
+    double weight = 1, area, h = 1, col1, col2;
+    for (TriMesh::FaceVertexIter vh_i = trimesh_.fv_iter(fh); vh_i.is_valid(); ++vh_i) {
+        for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(*vh_i); voh_it.is_valid(); ++voh_it) {
+            OpenMesh::FaceHandle fh2 = trimesh_.face_handle(*voh_it);
+            area = trimesh_.calc_face_area(fh2);
+            OpenMesh::VertexHandle vh_j = trimesh_.to_vertex_handle(*voh_it);
+            col1 = mapLocCoordToGlobCoordSys(fh2, *vh_i);
+            col2 = mapLocCoordToGlobCoordSys(fh2, vh_j);
+            //get sum of ut*dkm
+            double sum = 0;
+            for (int j = 0; j < 3; ++j) {
+                sum += basisTransformationMtx[fh2][j][col1] * basisTransformationMtx[fh2][j][col2];
+            }
+            _H(vertexPosUi[*vh_i], vertexPosUi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+            _H(vertexPosUi[vh_j], vertexPosUi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
+            _H(vertexPosVi[*vh_i], vertexPosVi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+            _H(vertexPosVi[vh_j], vertexPosVi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
+        }
+    }
 }

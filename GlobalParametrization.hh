@@ -58,7 +58,8 @@ private:
 
     void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, int &counter, std::vector<Point> &edges);
 
-    void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C, const std::vector<Point> &edges);
+    void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
+                          const std::vector<Point> &edges);
 
     gmm::col_matrix<std::vector<double>> createCMatrix();
 
@@ -66,7 +67,24 @@ private:
 
     CMatrixType getHessian(const std::vector<int> &faces, const int rhsSize);
 
-    void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV, std::vector<double> &_rhs);
+    void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV,
+                              std::vector<double> &_rhs);
+
+    int mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh);
+
+    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+
+    void getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+
+    void colorCompEdges(const std::vector<int> &complementEdges);
+
+    void getComplementMeshSel(std::vector<int> &complementEdges);
+
+    void removeOpenPaths(std::vector<int> &complementHEdges);
+
+    void removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges);
+
+    std::vector<int> getEdgesFromDualSpanningTree();
 
     TriMesh &trimesh_;
 

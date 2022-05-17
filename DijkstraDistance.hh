@@ -18,13 +18,14 @@ class DijkstraDistance {
 public:
     using Point = ACG::Vec3d;
 public:
-    DijkstraDistance(TriMesh &trimesh) : trimesh_{trimesh} {
-    }
+    DijkstraDistance(TriMesh &trimesh) : trimesh_{trimesh} {}
 
     ~DijkstraDistance() {
     }
 
 public:
+
+    void getDualGraph(const std::vector<int> &faces);
 
     std::vector<int>
     calculateDijkstra(const std::vector<int> HeConstraints, const double refDist, const bool includeBoundary);
@@ -36,6 +37,8 @@ public:
     std::vector<int> getHeConstraints();
 
 private:
+
+    int dualGraphGetSmallestDist(const std::vector<int> &faces);
 
     void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);
 

@@ -1,5 +1,60 @@
 #include "DijkstraDistance.hh"
 
+void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
+    trimesh_.release_face_status();
+    trimesh_.request_face_status();
+    double initValue = INT_MAX, zeroDist = 0.0;
+    auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
+    auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
+    auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
+    for (auto it = std::begin(faces), first = it, end = std::end(faces); it != end; ++it) {
+        auto fh = trimesh_.face_handle(*it);
+        dualGraphDist[fh] = initValue;
+        dualGraphOrigin[fh] = initValue;
+        dualGraphPred[fh] = initValue;
+        if (it == first) {
+            dualGraphDist[fh] = zeroDist;
+            dualGraphOrigin[fh] = *it;
+            dualGraphPred[fh] = *it;
+        }
+    }
+    while (true) {
+        double distance = 0.0;
+        int faceIdx = dualGraphGetSmallestDist(faces);
+        // if all vertices are visited the algo stops
+        if (faceIdx == INT_MAX)
+            break;
+        OpenMesh::FaceHandle fh = trimesh_.face_handle(faceIdx);
+        trimesh_.status(fh).set_tagged(true);
+        for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
+            Point origin = trimesh_.calc_face_centroid(fh);
+            Point neighbour = trimesh_.calc_face_centroid(*ff_it);
+            Point difference = neighbour - origin;
+            distance = dualGraphDist[fh] + difference.norm();
+            if (!trimesh_.status(*ff_it).tagged()
+                && distance < dualGraphDist[*ff_it]) {
+                dualGraphDist[*ff_it] = distance;
+                dualGraphOrigin[*ff_it] = dualGraphOrigin[fh];
+                dualGraphPred[*ff_it] = fh.idx();
+            }
+        }
+    }
+}
+
+int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
+    auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
+    double minDistance = DBL_MAX;
+    int idx = INT_MAX;
+    for (int i: faces) {
+        auto fh = trimesh_.face_handle(i);
+        if (!trimesh_.status(fh).tagged() && dualGraphDist[fh] < minDistance) {
+            minDistance = dualGraphDist[fh];
+            idx = i;
+        }
+    }
+    return idx;
+}
+
 std::vector<int>
 DijkstraDistance::calculateDijkstra(const std::vector<int> HeConstraints, const double refDist,
                                     const bool includeBoundary) {
@@ -48,10 +103,18 @@ std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &c
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
     auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
-    double minDistance = DBL_MAX, zeroDist = 0.0;
+    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+    double minDistance = INT_MAX, zeroDist = 0.0;
     std::vector<int> constraintFaces;
+
+    for (auto he: trimesh_.halfedges()) {
+        periodJump[he] = minDistance;
+    }
+
     for (auto fh: trimesh_.faces()) {
+        origin_constraint[fh] = minDistance;
         distanceBaryCenter[fh] = minDistance;
+        predecessor_face[fh] = minDistance;
         positionHessianMatrix[fh] = -1;
     }
     for (int i: constraintHeh) {
