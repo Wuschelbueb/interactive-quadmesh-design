@@ -3,7 +3,6 @@
 //
 
 #include "GlobalParametrization.hh"
-#include "DijkstraDistance.hh"
 
 void GlobalParametrization::getGlobalParam() {
     std::vector<int> faces;
@@ -20,7 +19,22 @@ void GlobalParametrization::getGlobalParam() {
     getComplementMeshSel(complementHEdges);
     removeOpenPaths(complementHEdges);
     colorCompEdges(complementHEdges);
+    connectSingularityToCutGraph(complementHEdges, dualGraph);
     std::cout << "ehllo world\n";
+}
+
+void
+GlobalParametrization::connectSingularityToCutGraph(std::vector<int> complementHEdges, DijkstraDistance &dualGraph) {
+    auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
+    std::vector<int> singularities;
+    for (auto vh: trimesh_.vertices()) {
+        if (crossFieldIdx[vh] < -1E-1) {
+            singularities.push_back(vh.idx());
+        } else if (crossFieldIdx[vh] > 1E-1) {
+            singularities.push_back(vh.idx());
+        }
+    }
+    dualGraph.getDijkstraSingularities(complementHEdges, singularities);
 }
 
 void GlobalParametrization::removeOpenPaths(std::vector<int> &complementHEdges) {
@@ -71,7 +85,7 @@ void GlobalParametrization::colorCompEdges(const std::vector<int> &complementEdg
 void GlobalParametrization::getComplementMeshSel(std::vector<int> &complementHEdges) {
     trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
-    std::vector<int> notValidEdges = getEdgesFromDualSpanningTree();
+    tagEdgesFromDualSpanningTree();
     for (auto he: trimesh_.halfedges()) {
         if (!trimesh_.status(he).tagged()) {
             complementHEdges.push_back(he.idx());
@@ -79,10 +93,9 @@ void GlobalParametrization::getComplementMeshSel(std::vector<int> &complementHEd
     }
 }
 
-std::vector<int> GlobalParametrization::getEdgesFromDualSpanningTree() {
+void GlobalParametrization::tagEdgesFromDualSpanningTree() {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
     auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
-    std::vector<int> excludedEdges;
     for (auto face: trimesh_.faces()) {
         if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && FaceSel[face] == true) {
             OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
@@ -98,7 +111,6 @@ std::vector<int> GlobalParametrization::getEdgesFromDualSpanningTree() {
             }
         }
     }
-    return excludedEdges;
 }
 
 void GlobalParametrization::getFaceVec(std::vector<int> &faces) {

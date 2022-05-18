@@ -1,5 +1,114 @@
 #include "DijkstraDistance.hh"
 
+void DijkstraDistance::getDijkstraSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+    std::vector<int> dualGraphVertices = createVerticesVector(complementHEdges, singularities);
+    initVertexProp(dualGraphVertices, true);
+    for (int i: singularities) {
+        calculateVDijkstra(i);
+        addPathToCutGraph(dualGraphVertices, i);
+        initVertexProp(dualGraphVertices, false);
+    }
+}
+
+std::vector<int>
+DijkstraDistance::createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+    std::vector<int> dualGraphVertices;
+    for (int i: complementHEdges) {
+        auto he = trimesh_.halfedge_handle(i);
+        auto vht = trimesh_.to_vertex_handle(he);
+        auto vhf = trimesh_.from_vertex_handle(he);
+        if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vhf.idx()) == dualGraphVertices.end()) {
+            dualGraphVertices.push_back(vhf.idx());
+        }
+        if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vht.idx()) == dualGraphVertices.end()) {
+            dualGraphVertices.push_back(vht.idx());
+        }
+    }
+    if (complementHEdges.empty()) {
+        dualGraphVertices.push_back(singularities[0]);
+        singularities.erase(singularities.begin());
+    }
+    return dualGraphVertices;
+}
+
+void DijkstraDistance::initVertexProp(std::vector<int> &dualGraphVertices, const bool flag) {
+    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
+    auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
+    int max = INT_MAX, zeroDist = 0.0;
+    for (auto vh: trimesh_.vertices()) {
+        vertexDist[vh] = max;
+        if (flag) {
+            vertexOrigin[vh] = max;
+            vertexPredecessor[vh] = max;
+        }
+    }
+    for (auto i: dualGraphVertices) {
+        auto vh = trimesh_.vertex_handle(i);
+        vertexDist[vh] = zeroDist;
+        if (flag) {
+            vertexOrigin[vh] = vh.idx();
+            vertexPredecessor[vh] = vh.idx();
+        }
+    }
+}
+
+int DijkstraDistance::vertexGetSmallestDist() {
+    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    double minDistance = DBL_MAX;
+    int idx = INT_MAX;
+    for (auto vh: trimesh_.vertices()) {
+        if (!trimesh_.status(vh).tagged() && vertexDist[vh] < minDistance) {
+            minDistance = vertexDist[vh];
+            idx = vh.idx();
+        }
+    }
+    return idx;
+}
+
+void DijkstraDistance::calculateVDijkstra(const int i) {
+    trimesh_.release_vertex_status();
+    trimesh_.request_vertex_status();
+    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
+    auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
+    auto vhSingularity = trimesh_.vertex_handle(i);
+    while (true) {
+        int vertexIdx = vertexGetSmallestDist();
+        // if destination vertex is visited
+        if (trimesh_.status(vhSingularity).tagged()) {
+            break;
+        }
+        auto vh_og = trimesh_.vertex_handle(vertexIdx);
+        trimesh_.status(vh_og).set_tagged(true);
+        for (TriMesh::VertexOHalfedgeIter vhe_it = trimesh_.voh_iter(vh_og); vhe_it.is_valid(); ++vhe_it) {
+            auto vh_next = trimesh_.to_vertex_handle(*vhe_it);
+            double distance = vertexDist[vh_og] + 1.0;
+            if (!trimesh_.status(vh_next).tagged()
+                && distance < vertexDist[vh_next]) {
+                vertexDist[vh_next] = distance;
+                vertexOrigin[vh_next] = vertexOrigin[vh_og];
+                vertexPredecessor[vh_next] = vh_og.idx();
+            }
+        }
+    }
+}
+
+void DijkstraDistance::addPathToCutGraph(std::vector<int> &dualGraphVertices, const int i) {
+    auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
+    auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
+    auto vh = trimesh_.vertex_handle(i);
+    bool flag = true;
+    while (flag) {
+        if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vh.idx()) == dualGraphVertices.end()) {
+            dualGraphVertices.push_back(vh.idx());
+            vh = trimesh_.vertex_handle(vertexPredecessor[vh]);
+        } else {
+            flag = false;
+        }
+    }
+}
+
 void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
     trimesh_.release_face_status();
     trimesh_.request_face_status();

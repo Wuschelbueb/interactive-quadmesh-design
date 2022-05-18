@@ -20,6 +20,8 @@
 #include <iostream>
 #include <vector>
 #include <float.h>
+#include <cmath>
+#include "DijkstraDistance.hh"
 
 class GlobalParametrization {
 public:
@@ -61,6 +63,8 @@ private:
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
                           const std::vector<Point> &edges);
 
+    void connectSingularityToCutGraph(std::vector<int> complementHEdges, DijkstraDistance &dualGraph);
+
     gmm::col_matrix<std::vector<double>> createCMatrix();
 
     std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSize);
@@ -84,7 +88,7 @@ private:
 
     void removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges);
 
-    std::vector<int> getEdgesFromDualSpanningTree();
+    void tagEdgesFromDualSpanningTree();
 
     TriMesh &trimesh_;
 
