@@ -562,12 +562,11 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
     // request to change the status
     trimesh_.request_vertex_status();
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
-    for (TriMesh::VertexIter v_it = trimesh_.vertices_begin(); v_it != trimesh_.vertices_end(); ++v_it) {
-        crossFieldIdx[*v_it] = 0;
+    for (auto vh: trimesh_.vertices()) {
+        crossFieldIdx[vh] = 0;
     }
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        double intValBaseIdx = 0.0;
         for (TriMesh::FaceVertexIter v_it = trimesh_.fv_iter(fh); v_it.is_valid(); ++v_it) {
             if (!trimesh_.status(*v_it).tagged() && !trimesh_.is_boundary(*v_it)) {
                 setCrossFieldIdx(v_it, faces.size(), heKappa, _x);
@@ -587,9 +586,10 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
     intValBaseIdx = (1 / (2 * M_PI)) * ((2 * M_PI - angleDefect) + sumKappa);
     double crossFldIdx = intValBaseIdx + (sumPJ / 4);
     //clean values close to zero
-    if (crossFldIdx < 1E-10 && crossFldIdx > -1E-10) {
+    if (crossFldIdx < 1E-2 && crossFldIdx > -1E-2) {
         crossFldIdx = 0;
     }
+    crossFldIdx = std::ceil(crossFldIdx * 100.0) / 100.0;
     crossFieldIdx[*fv_it] = crossFldIdx;
     trimesh_.status(*fv_it).set_tagged(true);
 }
