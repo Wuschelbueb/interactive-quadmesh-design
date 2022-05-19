@@ -27,17 +27,7 @@ public:
 
     void getDualGraph(const std::vector<int> &faces);
 
-    void getDijkstraSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities);
-
-    std::vector<int> createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities);
-
-    void initVertexProp(std::vector<int> &dualGraphVertices, const bool flag);
-
-    int vertexGetSmallestDist();
-
-    void calculateVDijkstra(const int i);
-
-    void addPathToCutGraph(std::vector<int> &dualGraphVertices, const int i);
+    void completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities);
 
     std::vector<int>
     calculateDijkstra(const std::vector<int> HeConstraints, const double refDist, const bool includeBoundary);
@@ -51,6 +41,20 @@ public:
 private:
 
     int dualGraphGetSmallestDist(const std::vector<int> &faces);
+
+    void initDualGraphProp(const std::vector<int> &faces);
+
+    void calculateDGDijkstra(const std::vector<int> &faces);
+
+    std::vector<int> createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities);
+
+    void initVertexProp(std::vector<int> &dualGraphVertices, const bool flag);
+
+    int vertexGetSmallestDist();
+
+    void calculateVDijkstra(const int i);
+
+    void addPathToCutGraph(std::vector<int> &dualGraphVertices, const int i);
 
     void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);
 

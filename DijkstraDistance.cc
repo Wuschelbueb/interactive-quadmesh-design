@@ -1,6 +1,6 @@
 #include "DijkstraDistance.hh"
 
-void DijkstraDistance::getDijkstraSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+void DijkstraDistance::completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
     std::vector<int> dualGraphVertices = createVerticesVector(complementHEdges, singularities);
     initVertexProp(dualGraphVertices, true);
     for (int i: singularities) {
@@ -110,23 +110,16 @@ void DijkstraDistance::addPathToCutGraph(std::vector<int> &dualGraphVertices, co
 }
 
 void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
+    initDualGraphProp(faces);
+    calculateDGDijkstra(faces);
+}
+
+void DijkstraDistance::calculateDGDijkstra(const std::vector<int> &faces) {
     trimesh_.release_face_status();
     trimesh_.request_face_status();
-    double initValue = INT_MAX, zeroDist = 0.0;
     auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
-    for (auto it = std::begin(faces), first = it, end = std::end(faces); it != end; ++it) {
-        auto fh = trimesh_.face_handle(*it);
-        dualGraphDist[fh] = initValue;
-        dualGraphOrigin[fh] = initValue;
-        dualGraphPred[fh] = initValue;
-        if (it == first) {
-            dualGraphDist[fh] = zeroDist;
-            dualGraphOrigin[fh] = *it;
-            dualGraphPred[fh] = *it;
-        }
-    }
     while (true) {
         double distance = 0.0;
         int faceIdx = dualGraphGetSmallestDist(faces);
@@ -146,6 +139,26 @@ void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
                 dualGraphOrigin[*ff_it] = dualGraphOrigin[fh];
                 dualGraphPred[*ff_it] = fh.idx();
             }
+        }
+    }
+}
+
+void DijkstraDistance::initDualGraphProp(const std::vector<int> &faces) {
+    trimesh_.release_face_status();
+    trimesh_.request_face_status();
+    double initValue = INT_MAX, zeroDist = 0.0;
+    auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
+    auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
+    auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
+    for (auto it = std::begin(faces), first = it, end = std::end(faces); it != end; ++it) {
+        auto fh = trimesh_.face_handle(*it);
+        dualGraphDist[fh] = initValue;
+        dualGraphOrigin[fh] = initValue;
+        dualGraphPred[fh] = initValue;
+        if (it == first) {
+            dualGraphDist[fh] = zeroDist;
+            dualGraphOrigin[fh] = *it;
+            dualGraphPred[fh] = *it;
         }
     }
 }

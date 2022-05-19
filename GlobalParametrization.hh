@@ -52,9 +52,9 @@ private:
 
     void meshCutting();
 
-    void getFaceVec(std::vector<int> &faces);
+    std::vector<int> getFaceVec();
 
-    int createVertexPosParamDom(std::vector<int> &faces);
+    int createVertexPosParamDomain(std::vector<int> &faces);
 
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
 
@@ -63,7 +63,7 @@ private:
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
                           const std::vector<Point> &edges);
 
-    void connectSingularityToCutGraph(std::vector<int> complementHEdges, DijkstraDistance &dualGraph);
+    std::vector<int> getSingularities();
 
     gmm::col_matrix<std::vector<double>> createCMatrix();
 
@@ -82,7 +82,7 @@ private:
 
     void colorCompEdges(const std::vector<int> &complementEdges);
 
-    void getComplementMeshSel(std::vector<int> &complementEdges);
+    std::vector<int> getComplementMeshSel();
 
     void removeOpenPaths(std::vector<int> &complementHEdges);
 
@@ -90,8 +90,13 @@ private:
 
     void tagEdgesFromDualSpanningTree();
 
-    TriMesh &trimesh_;
+    void checkIfFaceInSelection(OpenMesh::FaceHandle &face);
 
+    void checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &face, OpenMesh::FaceHandle &fh_pred);
+
+    void tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh);
+
+    TriMesh &trimesh_;
 };
 
 
