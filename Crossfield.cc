@@ -621,13 +621,13 @@ void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, d
 }
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
-    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     for (TriMesh::FaceIter f_it = trimesh_.faces_begin(); f_it != trimesh_.faces_end(); ++f_it) {
-        FaceSel[*f_it] = false;
+        faceSel[*f_it] = false;
     }
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        FaceSel[fh] = true;
+        faceSel[fh] = true;
     }
 }
 
