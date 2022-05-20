@@ -21,7 +21,7 @@ void GlobalParametrization::getGlobalParam() {
     std::vector<int> complementHEdges = getComplementMeshSel();
     removeOpenPaths(complementHEdges);
     //just for visualization
-    colorCompEdges(complementHEdges);
+//    colorCompEdges(complementHEdges);
     //complete dual graph with singularities
     dualGraph.completeDijkstraWSingularities(complementHEdges, singularities);
     std::cout << "ehllo world\n";
@@ -98,8 +98,6 @@ std::vector<int> GlobalParametrization::getComplementMeshSel() {
 }
 
 void GlobalParametrization::tagEdgesFromDualSpanningTree() {
-    auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
-    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
     for (auto face: trimesh_.faces()) {
         checkIfFaceInSelection(face);
     }
@@ -107,8 +105,8 @@ void GlobalParametrization::tagEdgesFromDualSpanningTree() {
 
 void GlobalParametrization::checkIfFaceInSelection(OpenMesh::FaceHandle &face) {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
-    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
-    if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && FaceSel[face] == true) {
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
+    if (dualGraphPred[face] != -1 && dualGraphPred[face] != face.idx() && faceSel[face] == true) {
         OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
         checkIfEBetweenTriangleInDualGraph(face, fh_pre);
 
@@ -138,9 +136,9 @@ GlobalParametrization::tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_
 
 std::vector<int> GlobalParametrization::getFaceVec() {
     std::vector<int> faces;
-    auto FaceSel = OpenMesh::FProp<bool>(trimesh_, "FaceSel");
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     for (auto face: trimesh_.faces()) {
-        if (FaceSel[face] == true) {
+        if (faceSel[face] == true) {
             faces.push_back(face.idx());
         }
     }
@@ -283,7 +281,7 @@ GlobalParametrization::getHessian(const std::vector<int> &faces, const int nbVer
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         getDiaEntriesHessian(fh, _H);
-        getEntriesHessian(fh, _H);
+//        getEntriesHessian(fh, _H);
     }
     return _H;
 }
@@ -329,21 +327,22 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::FaceHandle fh, CMa
     double weight = 1, area, h = 1, col1, col2;
     for (TriMesh::FaceVertexIter vh_i = trimesh_.fv_iter(fh); vh_i.is_valid(); ++vh_i) {
         for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(*vh_i); voh_it.is_valid(); ++voh_it) {
-            OpenMesh::FaceHandle fh_neigh = trimesh_.face_handle(*voh_it);
-            area = trimesh_.calc_face_area(fh_neigh);
-            OpenMesh::VertexHandle vh_j = trimesh_.to_vertex_handle(*voh_it);
-            col1 = mapLocCoordToGlobCoordSys(fh_neigh, *vh_i);
-            col2 = mapLocCoordToGlobCoordSys(fh_neigh, vh_j);
-            //get sum of ut*dkm
-            double sum = 0;
-            for (int j = 0; j < 3; ++j) {
-                sum += basisTransformationMtx[fh_neigh][j][col1] * basisTransformationMtx[fh_neigh][j][col2];
+            if (!trimesh_.is_boundary(*voh_it)) {
+                OpenMesh::FaceHandle fh_neigh = trimesh_.face_handle(*voh_it);
+                area = trimesh_.calc_face_area(fh_neigh);
+                OpenMesh::VertexHandle vh_j = trimesh_.to_vertex_handle(*voh_it);
+                col1 = mapLocCoordToGlobCoordSys(fh_neigh, *vh_i);
+                col2 = mapLocCoordToGlobCoordSys(fh_neigh, vh_j);
+                //get sum of ut*dkm
+                double sum = 0;
+                for (int j = 0; j < 3; ++j) {
+                    sum += basisTransformationMtx[fh_neigh][j][col1] * basisTransformationMtx[fh_neigh][j][col2];
+                }
+                _H(vertexPosUi[*vh_i], vertexPosUi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+                _H(vertexPosUi[vh_j], vertexPosUi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
+                _H(vertexPosVi[*vh_i], vertexPosVi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+                _H(vertexPosVi[vh_j], vertexPosVi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
             }
-            _H(vertexPosUi[*vh_i], vertexPosUi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
-            _H(vertexPosUi[vh_j], vertexPosUi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
-            _H(vertexPosVi[*vh_i], vertexPosVi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
-            _H(vertexPosVi[vh_j], vertexPosVi[*vh_i]) += 2 * weight * area * pow(h, 2) * sum;
-
         }
     }
 }

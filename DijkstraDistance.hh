@@ -42,6 +42,10 @@ private:
 
     int dualGraphGetSmallestDist(const std::vector<int> &faces);
 
+    void getBorder();
+
+    void searchComEBetweenF(const OpenMesh::FaceHandle fh, const OpenMesh::SmartFaceHandle fh2, const int color);
+
     void initDualGraphProp(const std::vector<int> &faces);
 
     void calculateDGDijkstra(const std::vector<int> &faces);
