@@ -2,40 +2,26 @@
 
 void
 DijkstraDistance::completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
-    trimesh_.release_edge_colors();
-    trimesh_.request_edge_colors();
-    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
-    auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
-    auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
-    auto cutHeColor = OpenMesh::HProp<int>(trimesh_, "cutHeColor");
-    std::vector<int> cutHedges;
-    std::vector<int> dualGraphVertices = createVerticesVector(complementHEdges, singularities);
-    initVertexProp(dualGraphVertices, true);
+    std::vector<int> cutGraphVertices = createVerticesVector(complementHEdges, singularities);
+    initProperties(cutGraphVertices, true);
     for (int i: singularities) {
-        calculateVDijkstra(i);
-        addPathToCutGraph(dualGraphVertices, i);
-        initVertexProp(dualGraphVertices, false);
+        if (!trimesh_.status(trimesh_.vertex_handle(i)).tagged2()) {
+            calculateVDijkstra(i);
+            addPathToCutGraph(cutGraphVertices, complementHEdges, i);
+            initProperties(cutGraphVertices, false);
+        }
     }
-//    for (auto eh: trimesh_.edges()) {
-//        trimesh_.set_color(eh, {0, 1, 1, 1});
-//    }
-//    for (auto vh: trimesh_.vertices()) {
-//        if (vertexDist[vh] == 0 && vertexPredecessor[vh] != vh.idx()) {
-//            auto vh2 = trimesh_.vertex_handle(vertexPredecessor[vh]);
-//            auto he = trimesh_.find_halfedge(vh, vh2);
-//            auto eh = trimesh_.edge_handle(he);
-//            trimesh_.set_color(eh, {1, 0, 0, 1});
-//        }
-//    }
 }
 
 std::vector<int>
 DijkstraDistance::createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+    trimesh_.release_vertex_status();
+    trimesh_.request_vertex_status();
     std::vector<int> dualGraphVertices;
     for (int i: complementHEdges) {
-        auto he = trimesh_.halfedge_handle(i);
-        auto vht = trimesh_.to_vertex_handle(he);
-        auto vhf = trimesh_.from_vertex_handle(he);
+        auto heh = trimesh_.halfedge_handle(i);
+        auto vht = trimesh_.to_vertex_handle(heh);
+        auto vhf = trimesh_.from_vertex_handle(heh);
         if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vhf.idx()) == dualGraphVertices.end()) {
             dualGraphVertices.push_back(vhf.idx());
         }
@@ -45,19 +31,19 @@ DijkstraDistance::createVerticesVector(std::vector<int> &complementHEdges, std::
     }
     if (complementHEdges.empty()) {
         dualGraphVertices.push_back(singularities[0]);
-        singularities.erase(singularities.begin());
+        trimesh_.status(trimesh_.vertex_handle(singularities[0])).set_tagged2(true);
     }
     return dualGraphVertices;
 }
 
-void DijkstraDistance::initVertexProp(std::vector<int> &dualGraphVertices, const bool flag) {
+void DijkstraDistance::initProperties(std::vector<int> &dualGraphVertices, const bool first_it) {
     auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
     int max = INT_MAX, zeroDist = 0.0;
     for (auto vh: trimesh_.vertices()) {
         vertexDist[vh] = max;
-        if (flag) {
+        if (first_it) {
             vertexOrigin[vh] = max;
             vertexPredecessor[vh] = max;
         }
@@ -65,7 +51,7 @@ void DijkstraDistance::initVertexProp(std::vector<int> &dualGraphVertices, const
     for (auto i: dualGraphVertices) {
         auto vh = trimesh_.vertex_handle(i);
         vertexDist[vh] = zeroDist;
-        if (flag) {
+        if (first_it) {
             vertexOrigin[vh] = vh.idx();
             vertexPredecessor[vh] = vh.idx();
         }
@@ -113,14 +99,23 @@ void DijkstraDistance::calculateVDijkstra(const int i) {
     }
 }
 
-void DijkstraDistance::addPathToCutGraph(std::vector<int> &dualGraphVertices, const int i) {
+void DijkstraDistance::addPathToCutGraph(std::vector<int> &dualGraphVertices, std::vector<int> &complementHEdges,
+                                         const int i) {
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
     auto vh = trimesh_.vertex_handle(i);
     bool flag = true;
     while (flag) {
         if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vh.idx()) == dualGraphVertices.end()) {
             dualGraphVertices.push_back(vh.idx());
+            auto vh_pred = trimesh_.vertex_handle(vertexPredecessor[vh]);
+            auto heh = trimesh_.find_halfedge(vh, vh_pred);
+            auto oheh = trimesh_.opposite_halfedge_handle(heh);
+            complementHEdges.push_back(heh.idx());
+            complementHEdges.push_back(oheh.idx());
+            cutGraphHe[heh] = true;
+            cutGraphHe[oheh] = true;
             vh = trimesh_.vertex_handle(vertexPredecessor[vh]);
         } else {
             flag = false;
@@ -141,11 +136,13 @@ void DijkstraDistance::initDualGraphProp(const std::vector<int> &faces) {
     auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
+    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
 
     for (auto fh: trimesh_.faces()) {
         dualGraphDist[fh] = initValue;
         dualGraphOrigin[fh] = initValue;
         dualGraphPred[fh] = initValue;
+        cutGraphFZone[fh] = zeroDist;
     }
     auto fh = trimesh_.face_handle(faces[0]);
     dualGraphDist[fh] = zeroDist;
@@ -218,11 +215,11 @@ void DijkstraDistance::getBorder() {
 
 void DijkstraDistance::searchComEBetweenF(const OpenMesh::FaceHandle fh, const OpenMesh::SmartFaceHandle fh2,
                                           const int color) {
-    auto borderEdge = OpenMesh::EProp<int>(trimesh_, "borderEdge");
+    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
     for (TriMesh::FaceEdgeIter fe_it = trimesh_.fe_iter(fh); fe_it.is_valid(); ++fe_it) {
         for (TriMesh::FaceEdgeIter fe2_it = trimesh_.fe_iter(fh2); fe2_it.is_valid(); ++fe2_it) {
             if (fe_it->idx() == fe2_it->idx()) {
-                borderEdge[*fe_it] = color;
+                borderDualG[*fe_it] = color;
             }
         }
     }
@@ -338,7 +335,7 @@ void DijkstraDistance::colorizeEdges(const std::vector<int> &includedHEdges) {
     TriMesh::Color green = {0, 1, 0, 1};
     TriMesh::Color white = {1, 1, 1, 1};
     // colorize all edges white
-    for (OpenMesh::EdgeHandle eh: trimesh_.edges()) {
+    for (auto eh: trimesh_.edges()) {
         trimesh_.set_color(eh, white);
     }
 

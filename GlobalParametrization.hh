@@ -50,8 +50,6 @@ public:
 
 private:
 
-    void meshCutting();
-
     std::vector<int> getFaceVec();
 
     int createVertexPosParamDomain(std::vector<int> &faces);
@@ -80,11 +78,13 @@ private:
 
     void getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
 
-    void colorCompEdges(const std::vector<int> &complementEdges);
+    void colorCompHEdges(const std::vector<int> &complementEdges);
 
     std::vector<int> getComplementMeshSel();
 
     void removeOpenPaths(std::vector<int> &complementHEdges);
+
+    void removeRedundantEdges(std::vector<int> &complementHEdges);
 
     void removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges);
 
@@ -97,6 +97,15 @@ private:
     void tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh);
 
     TriMesh &trimesh_;
+
+    void createSectorsCutGraph(std::vector<int> &complementHEdges, std::vector<int> &singularities);
+
+    void initVectorStartSec(const int i, std::vector<OpenMesh::HalfedgeHandle> &startOfSectors);
+
+    void propagateForSectors(int &sector, const std::vector<OpenMesh::HalfedgeHandle> &startOfSectors,
+                             std::vector<int> &singularities);
+
+    void propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities);
 };
 
 

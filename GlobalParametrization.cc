@@ -14,17 +14,21 @@ void GlobalParametrization::getGlobalParam() {
     DijkstraDistance dualGraph(trimesh_);
     dualGraph.getDualGraph(faces);
 
-    std::vector<double> _x(nbVerticesUaV);
-    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV);
-    CMatrixType _H = getHessian(faces, nbVerticesUaV);
-
     std::vector<int> complementHEdges = getComplementMeshSel();
     removeOpenPaths(complementHEdges);
-    //just for visualization
-//    colorCompEdges(complementHEdges);
+    removeRedundantEdges(complementHEdges);
+//    //just for visualization
+    colorCompHEdges(complementHEdges);
     //complete dual graph with singularities
     dualGraph.completeDijkstraWSingularities(complementHEdges, singularities);
-    std::cout << "ehllo world\n";
+    createSectorsCutGraph(complementHEdges, singularities);
+
+
+//
+//    std::vector<double> _x(nbVerticesUaV);
+//    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV);
+//    CMatrixType _H = getHessian(faces, nbVerticesUaV);
+    std::cout << "end of code\n";
 }
 
 std::vector<int> GlobalParametrization::getSingularities() {
@@ -73,15 +77,36 @@ void GlobalParametrization::removeEdgeFromGraph(const int i, std::vector<int> &c
     }
 }
 
-void GlobalParametrization::colorCompEdges(const std::vector<int> &complementEdges) {
-    auto colorizeDualGraph = OpenMesh::EProp<int>(trimesh_, "colorizeDualGraph");
+void GlobalParametrization::removeRedundantEdges(std::vector<int> &complementHEdges) {
+    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     for (auto eh: trimesh_.edges()) {
-        colorizeDualGraph[eh] = 0;
+        auto heh = make_smart(trimesh_.halfedge_handle(eh, 1), trimesh_);
+        auto oheh = make_smart(trimesh_.halfedge_handle(eh, 0), trimesh_);
+        auto it = std::find(complementHEdges.begin(), complementHEdges.end(), heh.idx());
+        auto it2 = std::find(complementHEdges.begin(), complementHEdges.end(), oheh.idx());
+        if ((it != complementHEdges.end() || it2 != complementHEdges.end()) && borderDualG[eh] != 1) {
+            complementHEdges.erase(it);
+            complementHEdges.erase(it2);
+        }
+        if (!faceSel[heh.face()] && it != complementHEdges.end() && borderDualG[eh] == 1) {
+            complementHEdges.erase(it);
+        }
+        if (!faceSel[oheh.face()] && it2 != complementHEdges.end() && borderDualG[eh] == 1) {
+            complementHEdges.erase(it2);
+        }
+    }
+}
+
+void GlobalParametrization::colorCompHEdges(const std::vector<int> &complementEdges) {
+    auto colorizeDualGraph = OpenMesh::EProp<bool>(trimesh_, "colorizeDualGraph");
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    for (auto heh: trimesh_.halfedges()) {
+        cutGraphHe[heh] = false;
     }
     for (int i: complementEdges) {
         OpenMesh::HalfedgeHandle he = trimesh_.halfedge_handle(i);
-        OpenMesh::EdgeHandle eh = trimesh_.edge_handle(he);
-        colorizeDualGraph[eh] = 1;
+        cutGraphHe[he] = true;
     }
 }
 
@@ -89,9 +114,9 @@ std::vector<int> GlobalParametrization::getComplementMeshSel() {
     std::vector<int> complementHEdges;
     trimesh_.release_halfedge_status();
     tagEdgesFromDualSpanningTree();
-    for (auto he: trimesh_.halfedges()) {
-        if (!trimesh_.status(he).tagged()) {
-            complementHEdges.push_back(he.idx());
+    for (auto heh: trimesh_.halfedges()) {
+        if (!trimesh_.status(heh).tagged()) {
+            complementHEdges.push_back(heh.idx());
         }
     }
     return complementHEdges;
@@ -106,7 +131,7 @@ void GlobalParametrization::tagEdgesFromDualSpanningTree() {
 void GlobalParametrization::checkIfFaceInSelection(OpenMesh::FaceHandle &face) {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
-    if (dualGraphPred[face] != -1 && dualGraphPred[face] != face.idx() && faceSel[face] == true) {
+    if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && faceSel[face] == true) {
         OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
         checkIfEBetweenTriangleInDualGraph(face, fh_pre);
 
@@ -127,7 +152,8 @@ GlobalParametrization::checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &
 void
 GlobalParametrization::tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh) {
     trimesh_.request_halfedge_status();
-    if (fhe_pred_it->idx() == oheh.idx()) {
+    auto eh = trimesh_.edge_handle(*fhe_pred_it);
+    if ((fhe_pred_it->idx() == oheh.idx())) {
         auto heh = trimesh_.opposite_halfedge_handle(oheh);
         trimesh_.status(oheh).set_tagged(true);
         trimesh_.status(heh).set_tagged(true);
@@ -347,3 +373,77 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::FaceHandle fh, CMa
     }
 }
 
+void GlobalParametrization::createSectorsCutGraph(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+    trimesh_.release_halfedge_status();
+    trimesh_.request_halfedge_status();
+    int sector = 1;
+    for (int singularity: singularities) {
+        std::vector<OpenMesh::HalfedgeHandle> startOfSectors;
+        initVectorStartSec(singularity, startOfSectors);
+        propagateForSectors(sector, startOfSectors, singularities);
+    }
+}
+
+void GlobalParametrization::initVectorStartSec(const int singularity,
+                                               std::vector<OpenMesh::HalfedgeHandle> &startOfSectors) {
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    auto vh = trimesh_.vertex_handle(singularity);
+    //initialize values with first cycle
+    for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
+        if (cutGraphHe[*voh_it]) {
+            startOfSectors.push_back(*voh_it);
+        }
+    }
+}
+
+void GlobalParametrization::propagateForSectors(int &sector,
+                                                const std::vector<OpenMesh::HalfedgeHandle> &startOfSectors,
+                                                std::vector<int> &singularities) {
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
+    for (auto heh: startOfSectors) {
+        propagation(heh, sector, singularities);
+    }
+}
+
+void
+GlobalParametrization::propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities) {
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
+    OpenMesh::SmartHalfedgeHandle sheh = make_smart(heh, trimesh_), incHeOpp = sheh.opp(), newOutgoHe;
+    auto heToVertex = sheh.to();
+    cutGraphFZone[sheh.face()] = sector;
+    bool next_sing_found = false;
+    int idx = -1;
+    while (!next_sing_found) {
+        std::vector<OpenMesh::HalfedgeHandle> outGoingHe;
+        for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(heToVertex); voh_it.is_valid(); ++voh_it) {
+            if (cutGraphHe[*voh_it]) {
+                outGoingHe.push_back(*voh_it);
+            }
+        }
+        //get pos of incHeOpp in outGoingHe.
+        auto it = find(outGoingHe.begin(), outGoingHe.end(), incHeOpp);
+        if (it != outGoingHe.end()) {
+            idx = it - outGoingHe.begin();
+        }
+        //get element after incHeOpp in outGoingHe
+        if (idx == ((int) outGoingHe.size() - 1)) {
+            //set incHeOpp = element
+            newOutgoHe = make_smart(outGoingHe[0], trimesh_);
+        } else {
+            newOutgoHe = make_smart(outGoingHe[idx + 1], trimesh_);
+        }
+        //set heToVertex = element.to()
+        heToVertex = newOutgoHe.to();
+        //set cugraphFzone = sector
+        cutGraphFZone[newOutgoHe.face()] = sector;
+        //check if heToVertex is singularity
+        if ((std::find(singularities.begin(), singularities.end(), heToVertex.idx()) != singularities.end())) {
+            next_sing_found = true;
+        }
+        //make it outgoing for the next cycle
+        incHeOpp = newOutgoHe.opp();
+    }
+    sector++;
+}
