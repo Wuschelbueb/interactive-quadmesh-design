@@ -8,8 +8,6 @@ void GlobalParametrization::getGlobalParam() {
     //set up vectors
     std::vector<int> faces = getFaceVec();
     std::vector<int> singularities = getSingularities();
-    // *2 because we have a V and a U param
-    int nbVerticesUaV = createVertexPosParamDomain(faces) * 2;
     setUpLocFaceCoordSys(faces);
     DijkstraDistance dualGraph(trimesh_);
     dualGraph.getDualGraph(faces);
@@ -21,12 +19,12 @@ void GlobalParametrization::getGlobalParam() {
     colorCompHEdges(complementHEdges);
     //complete dual graph with singularities
     dualGraph.completeDijkstraWSingularities(complementHEdges, singularities);
-    createSectorsCutGraph(complementHEdges, singularities);
+    createSectorsCutGraph(singularities);
 
-
-//
+    // *2 because we have a V and a U param
+    int nbVerticesUaV = createVertexPosParamDomain(faces) * 2;
 //    std::vector<double> _x(nbVerticesUaV);
-    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV);
+//    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV);
 //    CMatrixType _H = getHessian(faces, nbVerticesUaV);
     std::cout << "end of code\n";
 }
@@ -174,20 +172,60 @@ std::vector<int> GlobalParametrization::getFaceVec() {
 int GlobalParametrization::createVertexPosParamDomain(std::vector<int> &faces) {
     trimesh_.release_vertex_status();
     trimesh_.request_vertex_status();
-    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
-    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     int countVertices = 0;
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
             if (!trimesh_.status(*fv_it).tagged()) {
-                vertexPosUi[*fv_it] = countVertices++;
-                vertexPosVi[*fv_it] = countVertices++;
-                trimesh_.status(*fv_it).set_tagged(true);
+                checkCGandSetPos(*fv_it, countVertices);
             }
         }
     }
     return countVertices;
+}
+
+void GlobalParametrization::checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices) {
+    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    if (vertexDist[fv_it] == 0) {
+        //check if on cutgraph
+        if (checkIfLeaf(fv_it)) { // leaf
+            //add increase number normally
+            vertexPosUi[fv_it] = countVertices++;
+            vertexPosVi[fv_it] = countVertices++;
+            trimesh_.status(fv_it).set_tagged(true);
+        } else { //inner node
+            getPositionInnerNode(fv_it, countVertices);
+        }
+    } else {
+        vertexPosUi[fv_it] = countVertices++;
+        vertexPosVi[fv_it] = countVertices++;
+        trimesh_.status(fv_it).set_tagged(true);
+    }
+}
+
+void GlobalParametrization::getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices) {
+    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
+    auto vertexAppearanceCG = OpenMesh::VProp<double>(trimesh_, "vertexAppearanceCG");
+    std::vector<int> adjacentSectors;
+    //if on inner cutgraph add additional space for matrix
+    for (TriMesh::VertexFaceIter vf_it = trimesh_.vf_iter(fv_it); vf_it.is_valid(); ++vf_it) {
+        auto it = find(adjacentSectors.begin(), adjacentSectors.end(), cutGraphFZone[*vf_it]);
+        if (it == adjacentSectors.end() && cutGraphFZone[*vf_it] != 0) {
+            adjacentSectors.push_back(cutGraphFZone[*vf_it]);
+        }
+    }
+    //this is in case there are borders which are in the cutgraph
+    int appearance = ((int) adjacentSectors.size() == 0) ? 1 : (int) adjacentSectors.size();
+    vertexAppearanceCG[fv_it] = appearance;
+    vertexPosUi[fv_it] = countVertices;
+    countVertices += appearance;
+    vertexPosVi[fv_it] = countVertices;
+    countVertices += appearance;
+    trimesh_.status(fv_it).set_tagged(true);
 }
 
 void GlobalParametrization::setUpLocFaceCoordSys(const std::vector<int> &faces) {
@@ -373,7 +411,7 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::FaceHandle fh, CMa
     }
 }
 
-void GlobalParametrization::createSectorsCutGraph(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
+void GlobalParametrization::createSectorsCutGraph(std::vector<int> &singularities) {
     trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
     int sector = 1;

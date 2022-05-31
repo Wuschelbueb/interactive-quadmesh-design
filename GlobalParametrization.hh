@@ -54,6 +54,10 @@ private:
 
     int createVertexPosParamDomain(std::vector<int> &faces);
 
+    void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices);
+
+    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int & countVertices);
+
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
 
     void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, int &counter, std::vector<Point> &edges);
@@ -98,7 +102,7 @@ private:
 
     TriMesh &trimesh_;
 
-    void createSectorsCutGraph(std::vector<int> &complementHEdges, std::vector<int> &singularities);
+    void createSectorsCutGraph(std::vector<int> &singularities);
 
     void initVectorStartSec(const int i, std::vector<OpenMesh::HalfedgeHandle> &startOfSectors);
 

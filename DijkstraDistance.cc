@@ -40,12 +40,14 @@ void DijkstraDistance::initProperties(std::vector<int> &dualGraphVertices, const
     auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
+    auto vertexAppearanceCG = OpenMesh::VProp<double>(trimesh_, "vertexAppearanceCG");
     int max = INT_MAX, zeroDist = 0.0;
     for (auto vh: trimesh_.vertices()) {
         vertexDist[vh] = max;
         if (first_it) {
             vertexOrigin[vh] = max;
             vertexPredecessor[vh] = max;
+            vertexAppearanceCG[vh] = 1;
         }
     }
     for (auto i: dualGraphVertices) {
