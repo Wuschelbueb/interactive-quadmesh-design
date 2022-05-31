@@ -106,6 +106,8 @@ private:
                              std::vector<int> &singularities);
 
     void propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities);
+
+    bool checkIfLeaf(const OpenMesh::VertexHandle &heToVertex);
 };
 
 
