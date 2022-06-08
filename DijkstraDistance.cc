@@ -18,6 +18,7 @@ DijkstraDistance::createVerticesVector(std::vector<int> &complementHEdges, std::
     trimesh_.release_vertex_status();
     trimesh_.request_vertex_status();
     std::vector<int> dualGraphVertices;
+    //if both singularities and complementHEdges are empty crash
     for (int i: complementHEdges) {
         auto heh = trimesh_.halfedge_handle(i);
         auto vht = trimesh_.to_vertex_handle(heh);
@@ -40,8 +41,8 @@ void DijkstraDistance::initProperties(std::vector<int> &dualGraphVertices, const
     auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
-    auto vertexAppearanceCG = OpenMesh::VProp<double>(trimesh_, "vertexAppearanceCG");
-    int max = INT_MAX, zeroDist = 0.0;
+    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
+    int max = INT_MAX, zeroDist = 0.0, counter = 0;
     for (auto vh: trimesh_.vertices()) {
         vertexDist[vh] = max;
         if (first_it) {
@@ -49,6 +50,7 @@ void DijkstraDistance::initProperties(std::vector<int> &dualGraphVertices, const
             vertexPredecessor[vh] = max;
             vertexAppearanceCG[vh] = 1;
         }
+        counter++;
     }
     for (auto i: dualGraphVertices) {
         auto vh = trimesh_.vertex_handle(i);
