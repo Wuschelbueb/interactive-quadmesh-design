@@ -17,8 +17,10 @@ void GlobalParametrization::getGlobalParam() {
     removeRedundantEdges(complementHEdges);
     //just for visualization
     colorCompHEdges(complementHEdges);
-    //complete dual graph with singularities
-    dualGraph.completeDijkstraWSingularities(complementHEdges, singularities);
+    std::vector<int> onlyBoundaries = complementHEdges;
+    std::vector<int> cutGraphWoBoundary;
+    //add path from boundary to singularity to cut graph
+    dualGraph.completeDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
     createSectorsCutGraph(singularities);
     fixRotationsCrossBoundaryComp(complementHEdges, singularities, faces);
 
@@ -98,7 +100,6 @@ void GlobalParametrization::removeRedundantEdges(std::vector<int> &complementHEd
 }
 
 void GlobalParametrization::colorCompHEdges(const std::vector<int> &complementEdges) {
-    auto colorizeDualGraph = OpenMesh::EProp<bool>(trimesh_, "colorizeDualGraph");
     auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
     for (auto heh: trimesh_.halfedges()) {
         cutGraphHe[heh] = false;
@@ -590,7 +591,8 @@ GlobalParametrization::getPJ(TriMesh::FaceHalfedgeIter &fhe_it, OpenMesh::SmartH
     return pj;
 }
 
-void GlobalParametrization::updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe) {;
+void GlobalParametrization::updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe) {
+    ;
     auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");

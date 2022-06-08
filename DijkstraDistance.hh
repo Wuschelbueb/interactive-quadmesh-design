@@ -27,7 +27,8 @@ public:
 
     void getDualGraph(const std::vector<int> &faces);
 
-    void completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities);
+    void completeDijkstraWSingularities(std::vector<int> &complementHEdges,
+                                        std::vector<int> &singularities, std::vector<int> &cutGraphWoBoundary);
 
     std::vector<int>
     calculateDijkstra(const std::vector<int> HeConstraints, const double refDist, const bool includeBoundary);
@@ -58,7 +59,8 @@ private:
 
     void calculateVDijkstra(const int i);
 
-    void addPathToCutGraph(std::vector<int> &dualGraphVertices,std::vector<int> &complementHEdges, const int i);
+    void addPathToCutGraph(std::vector<int> &dualGraphVertices, std::vector<int> &complementHEdges, const int i,
+                           std::vector<int> &cutGraphWoBoundary);
 
     void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);
 

@@ -130,7 +130,6 @@ private:
 
     std::vector<int> getFaceConstraints();
 
-
     TriMesh &trimesh_;
     std::vector<int> &heInRange_;
     std::vector<int> &heConstraints_;
