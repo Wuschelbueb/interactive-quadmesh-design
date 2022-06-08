@@ -56,11 +56,11 @@ private:
 
     void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices);
 
-    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int & countVertices);
+    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices);
 
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
 
-    void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, int &counter, std::vector<Point> &edges);
+    void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, std::vector<Point> &edges);
 
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
                           const std::vector<Point> &edges);
@@ -73,6 +73,8 @@ private:
 
     CMatrixType getHessian(const std::vector<int> &faces, const int rhsSize);
 
+    gmm::row_matrix<gmm::wsvector<double>> getConstraints(const std::vector<int> &faces);
+
     void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV,
                               std::vector<double> &_rhs);
 
@@ -81,6 +83,9 @@ private:
     void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
 
     void getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+
+    void
+    checkBoundaryAndUniqueFace(const OpenMesh::VertexHandle &vh_i, const OpenMesh::FaceHandle &fh, CMatrixType &_H);
 
     void colorCompHEdges(const std::vector<int> &complementEdges);
 
@@ -112,6 +117,19 @@ private:
     void propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities);
 
     bool checkIfLeaf(const OpenMesh::VertexHandle &heToVertex);
+
+    void fixRotationsCrossBoundaryComp(std::vector<int> &complementHEdges, std::vector<int> &singularities,
+                                       std::vector<int> &faces);
+
+    Point rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta);
+
+    std::pair<int, int> getPJ(TriMesh::FaceHalfedgeIter &fhe_it, OpenMesh::SmartHalfedgeHandle &ohe);
+
+    void updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe);
+
+    void updateStack(TriMesh::FaceHalfedgeIter &he, std::queue<OpenMesh::FaceHandle> &stack);
+
+    void setFaceStatusToFalse();
 };
 
 
