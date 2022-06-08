@@ -278,6 +278,7 @@ std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &c
     auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+    auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     double minDistance = INT_MAX, zeroDist = 0.0;
     std::vector<int> constraintFaces;
 
@@ -290,6 +291,7 @@ std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &c
         distanceBaryCenter[fh] = minDistance;
         predecessor_face[fh] = minDistance;
         positionHessianMatrix[fh] = -1;
+        currentPJ[fh] = minDistance;
     }
     for (int i: constraintHeh) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);

@@ -543,20 +543,20 @@ bool GlobalParametrization::checkIfLeaf(const OpenMesh::VertexHandle &heToVertex
 
 void GlobalParametrization::fixRotationsCrossBoundaryComp(std::vector<int> &complementHEdges,
                                                           std::vector<int> &singularities, std::vector<int> &faces) {
+    auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     trimesh_.request_face_status();
     trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
     auto temp = trimesh_.face_handle(faces[0]);
     std::queue<OpenMesh::FaceHandle> stack;
     setFaceStatusToFalse();
+    currentPJ[temp] = 0;
     stack.push(temp);
     trimesh_.status(temp).set_tagged2(true);
     while (!stack.empty()) {
         for (TriMesh::FaceHalfedgeIter fhe_it = trimesh_.fh_iter(stack.front()); fhe_it.is_valid(); ++fhe_it) {
-//            std::cout << "face: " << stack.front().idx() << " with he: " << fhe_it->idx() << std::endl;
             updateStack(fhe_it, stack);
         }
-//        std::cout << "remove face from stack: " << stack.front().idx() << std::endl;
         stack.pop();
     }
     trimesh_.release_face_status();
@@ -567,16 +567,12 @@ void GlobalParametrization::updateStack(OpenMesh::PolyConnectivity::FaceHalfedge
     auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto ohe = he->opp();
-    if (!(cutGraphHe[*he] || cutGraphHe[ohe]) && ohe.face().is_valid() && faceSel[ohe.face()]) {
+    if (!(cutGraphHe[*he] || cutGraphHe[ohe]) && ohe.face().is_valid() && faceSel[ohe.face()] &&
+        !trimesh_.status(ohe.face()).tagged2()) {
         std::pair<int, int> pj = getPJ(he, ohe);
-        if (pj.second != 0) {
-            updatePJandCrossfield(pj, ohe);
-        }
-        if (!trimesh_.status(ohe.face()).tagged2()) {
-            trimesh_.status(ohe.face()).set_tagged2(true);
-//            std::cout << "add face to stack: " << ohe.face().idx() << std::endl;
-            stack.push(ohe.face());
-        }
+        updatePJandCrossfield(pj, ohe);
+        trimesh_.status(ohe.face()).set_tagged2(true);
+        stack.push(ohe.face());
     }
 }
 
@@ -588,64 +584,35 @@ GlobalParametrization::getPJ(TriMesh::FaceHalfedgeIter &fhe_it, OpenMesh::SmartH
     std::pair<int, int> pj = {0, 0};
     if ((periodJump[*fhe_it] != INT_MAX && periodJump[*fhe_it] != 0)) {
         pj = {fhe_it->idx(), periodJump[*fhe_it]};
-//        std::cout << "getPJ, he: " << pj.first << " and pj: " << pj.second << std::endl;
     } else if ((periodJump[ohe] != INT_MAX && periodJump[ohe] != 0)) {
         pj = {ohe.idx(), periodJump[ohe]};
-//        std::cout << "getPJ, he: " << pj.first << " and pj: " << pj.second << std::endl;
     }
     return pj;
 }
 
-void GlobalParametrization::updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe) {
-    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+void GlobalParametrization::updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe) {;
+    auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
-//    std::cout << "update Pj and Crossfield ohe idx: " << ohe.idx() << std::endl;
-    for (auto heNFIt = ohe.face().halfedges().begin(); heNFIt.is_valid(); ++heNFIt) {
-//        std::cout << "start of heNFIt loop with values:\n" << "pj idx: " << pj.first << std::endl << "pj: " << pj.second
-//                  << std::endl << "with he iter: " << heNFIt->idx() << std::endl;
-        auto oheONF = heNFIt->opp();
-        !trimesh_.status(ohe.face()).tagged2();
-        //calculation is wrong, should be = 0 if same edge and all neighbouring edges should add hte pj
-        if (pj.first == heNFIt->idx() && !trimesh_.status(*heNFIt).tagged2()) {
-            trimesh_.status(*heNFIt).set_tagged2(true);
-            periodJump[*heNFIt] -= pj.second;
-//            std::cout << "ohe idx is same idx as pj. need to subtract " << periodJump[*heNFIt] << std::endl;
-        } else if (pj.first == oheONF.idx() && !trimesh_.status(oheONF).tagged2()) {
-            periodJump[oheONF] -= pj.second;
-            trimesh_.status(oheONF).set_tagged2(true);
-//            std::cout << "og he idx is same idx as pj. need to subtract " << periodJump[oheONF] << std::endl;
-        } else if (periodJump[*heNFIt] != INT_MAX && periodJump[*heNFIt] != 0 && !trimesh_.status(*heNFIt).tagged2()) {
-            periodJump[*heNFIt] += pj.second;
-            trimesh_.status(*heNFIt).set_tagged2(true);
-//            std::cout << "he is a different idx, add pj to them " << periodJump[*heNFIt] << std::endl;
-        } else if (periodJump[oheONF] != INT_MAX && periodJump[oheONF] != 0 && !trimesh_.status(oheONF).tagged2()) {
-            periodJump[oheONF] += pj.second;
-            trimesh_.status(oheONF).set_tagged2(true);
-//            std::cout << "he (opp side) is a different idx, add pj to them " << periodJump[oheONF] << std::endl;
-        } else if (periodJump[*heNFIt] != INT_MAX && !trimesh_.status(*heNFIt).tagged2()) {
-            periodJump[*heNFIt] += pj.second;
-            trimesh_.status(*heNFIt).set_tagged2(true);
-//            std::cout << "second last resort. if none are matching, add to either he" << periodJump[*heNFIt]
-//                      << std::endl;
-        } else if (periodJump[oheONF] != INT_MAX && !trimesh_.status(oheONF).tagged2()) {
-            periodJump[oheONF] += pj.second;
-            trimesh_.status(oheONF).set_tagged2(true);
-//            std::cout << "last resort. if other isn't qualified, add to this one " << periodJump[oheONF] << std::endl;
-        } else {
-//            std::cout << "none of the above were true, nothing happens\n";
-        }
-
-    }
-    if (!trimesh_.status(ohe.face()).tagged()) {
-        trimesh_.status(ohe.face()).set_tagged(true);
-//        std::cout << "crossfield of face " << ohe.face().idx() << " by " << M_PI / 2 * (-pj.second) << " rotated\n";
+    if (pj.first == ohe.opp().idx()) {
+        int pjVal = -pj.second + currentPJ[ohe.opp().face()];
         uVectorFieldRotOne[ohe.face()] = rotPointWithRotMatrix(ohe.face(), uVectorFieldRotOne[ohe.face()],
-                                                               M_PI / 2 * (-pj.second));
+                                                               M_PI / 2 *
+                                                               pjVal);
         uVectorFieldRotTwo[ohe.face()] = rotPointWithRotMatrix(ohe.face(), uVectorFieldRotTwo[ohe.face()],
-                                                               M_PI / 2 * (-pj.second));
+                                                               M_PI / 2 *
+                                                               pjVal);
+        currentPJ[ohe.face()] = pjVal;
+    } else {
+        int pjVal = pj.second + currentPJ[ohe.opp().face()];
+        uVectorFieldRotOne[ohe.face()] = rotPointWithRotMatrix(ohe.face(), uVectorFieldRotOne[ohe.face()],
+                                                               M_PI / 2 *
+                                                               pjVal);
+        uVectorFieldRotTwo[ohe.face()] = rotPointWithRotMatrix(ohe.face(), uVectorFieldRotTwo[ohe.face()],
+                                                               M_PI / 2 *
+                                                               pjVal);
+        currentPJ[ohe.face()] = pjVal;
     }
-
 }
 
 GlobalParametrization::Point
@@ -665,6 +632,7 @@ gmm::row_matrix<gmm::wsvector<double>> GlobalParametrization::getConstraints(con
 }
 
 void GlobalParametrization::setFaceStatusToFalse() {
+
     for (auto face: trimesh_.faces()) {
         trimesh_.status(face).set_tagged(false);
     }
