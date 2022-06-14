@@ -1,7 +1,8 @@
 #include "DijkstraDistance.hh"
 
 void
-DijkstraDistance::completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities, std::vector<int> &cutGraphWoBoundary) {
+DijkstraDistance::completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities,
+                                                 std::vector<int> &cutGraphWoBoundary) {
     std::vector<int> cutGraphVertices = createVerticesVector(complementHEdges, singularities);
     initProperties(cutGraphVertices, true);
     for (int i: singularities) {
@@ -202,9 +203,18 @@ int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
 void DijkstraDistance::getBorder() {
     trimesh_.request_face_status();
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
+    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
     for (auto fh: trimesh_.faces()) {
         for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
-            // border
+            // border of 3d object
+            if (fh.is_boundary() && (dualGraphOrigin[fh] != INT_MAX)) {
+                for (TriMesh::FaceEdgeIter fhe_it = trimesh_.fe_iter(fh); fhe_it.is_valid(); ++fhe_it) {
+                    if (fhe_it->is_boundary()) {
+                        borderDualG[*fhe_it] = 1;
+                    }
+                }
+            }
+            // border of selection
             if (dualGraphOrigin[fh] != dualGraphOrigin[*ff_it]) {
                 searchComEBetweenF(fh, *ff_it, 1);
                 // inside dual graph
