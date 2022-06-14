@@ -54,33 +54,45 @@ private:
 
     int createVertexPosParamDomain(std::vector<int> &faces);
 
-    void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices);
+    void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices, std::ofstream &positionOutput);
 
-    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices);
+    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices, std::ofstream &positionOutput);
 
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
 
     void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, std::vector<Point> &edges);
 
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
-                          const std::vector<Point> &edges);
+                          const std::vector<Point> &edges, std::ofstream &o);
 
     std::vector<int> getSingularities();
 
     gmm::col_matrix<std::vector<double>> createCMatrix();
 
-    std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSize);
+    std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
 
-    CMatrixType getHessian(const std::vector<int> &faces, const int rhsSize);
+    CMatrixType getHessian(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
 
-    gmm::row_matrix<gmm::wsvector<double>> getConstraints(const std::vector<int> &faces);
+    gmm::row_matrix<gmm::wsvector<double>>
+    getConstraints(const std::vector<int> &faces, const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
+                   std::vector<int> &singularities);
+
+    int getRowSizeAndSetProps();
+
+    void setZeroPoint(std::vector<int> &singularities, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
+
+    void getConstraintsMatrix(int &jkStartCounter, std::vector<int> &cutGraphWoBoundary,
+                              gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::ofstream &o);
+
+    void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartVertexHandle &vh,
+                    gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::ofstream &o);
 
     void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV,
                               std::vector<double> &_rhs);
 
     int mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh);
 
-    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H, std::ofstream &o);
 
     void getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
 
