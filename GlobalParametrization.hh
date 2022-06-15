@@ -54,16 +54,16 @@ private:
 
     int createVertexPosParamDomain(std::vector<int> &faces);
 
-    void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices, std::ofstream &positionOutput);
+    void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices);
 
-    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices, std::ofstream &positionOutput);
+    void getPositionInnerNode(OpenMesh::VertexHandle &fv_it, int &countVertices);
 
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
 
     void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, std::vector<Point> &edges);
 
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
-                          const std::vector<Point> &edges, std::ofstream &o);
+                          const std::vector<Point> &edges);
 
     std::vector<int> getSingularities();
 
@@ -77,15 +77,17 @@ private:
     getConstraints(const std::vector<int> &faces, const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
                    std::vector<int> &singularities);
 
-    int getRowSizeAndSetProps();
+    int getRowSize();
 
     void setZeroPoint(std::vector<int> &singularities, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     void getConstraintsMatrix(int &jkStartCounter, std::vector<int> &cutGraphWoBoundary,
                               gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::ofstream &o);
 
-    void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartVertexHandle &vh,
+    void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartHalfedgeHandle &he,
                     gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::ofstream &o);
+
+    int getPositionConstraintRow(OpenMesh::SmartVertexHandle &vh, int temp);
 
     void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV,
                               std::vector<double> &_rhs);
