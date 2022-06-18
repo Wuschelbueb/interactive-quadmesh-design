@@ -37,7 +37,8 @@ void Crossfield::getCrossfield() {
     csolver.misolver().set_local_error(1e-3);
     csolver.misolver().set_cg_error(1e-3);
     csolver.misolver().set_multiple_rounding();
-    std::cout << "Dimensions of parameters:\n" << "Constraints Rows:\t" << gmm::mat_nrows(_constraints)
+    std::cout << "Calculation of Smooth Crossfield\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
+              << gmm::mat_nrows(_constraints)
               << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
               << "A Rows:\t\t\t\t" << gmm::mat_nrows(_H) << " and columns: " << gmm::mat_ncols(_H) << std::endl
               << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
@@ -50,6 +51,7 @@ void Crossfield::getCrossfield() {
     std::vector<double> _b = getVectorb(heKappa);
     double energy = getEnergy(_A, _x, _b);
     getCrossFieldIdx(faces, heKappa, _x);
+    setPJProp(heKappa, _x, faces.size());
 //    std::cout << "Energy: " << energy << std::endl;
 //        std::cout << "Matrices after solver: " << std::endl;
 //    std::cout << "H: " << _H << std::endl;
@@ -57,9 +59,11 @@ void Crossfield::getCrossfield() {
 //        std::cout << "_rhs[" << i << "] = " << _rhs[i] << std::endl;
 //    }
 //    std::cout << std::endl;
+//    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorCrossfield.txt");
 //    for (std::size_t i = 0, max = _x.size(); i != max; ++i) {
-//        std::cout << "_x[" << i << "] = " << _x[i] << std::endl;
+//        xVector << "_x[" << i << "] = " << _x[i] << std::endl;
 //    }
+//    xVector.close();
 //    std::cout << std::endl;
 //    std::cout << "constraints after: " << _constraints << std::endl;
 }
@@ -564,6 +568,7 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
     for (auto vh: trimesh_.vertices()) {
         crossFieldIdx[vh] = 0;
+        trimesh_.status(vh).set_tagged(false);
     }
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
@@ -609,12 +614,10 @@ void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, d
             position = std::distance(std::begin(heKappa), it);
             //with position and faceSize we can extract p_ij value of _x vector (solution)
             sumPJ += _x[faceSize + position];
-            periodJump[*vohe_it] = _x[faceSize + position];
             sumKappa += it->second;
         } else if (it2 != heKappa.end()) {
             position = std::distance(std::begin(heKappa), it2);
             sumPJ -= _x[faceSize + position];
-            periodJump[oppHe] = _x[faceSize + position];
             sumKappa -= it2->second;
         }
     }
@@ -662,4 +665,13 @@ Crossfield::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec
     //Rodrigues rotation formula
     Point rotVec = vec * cos(theta) - (f_normal % vec) * sin(theta) + f_normal * (vec | f_normal) * (1 - cos(theta));
     return rotVec;
+}
+
+void Crossfield::setPJProp(std::map<int, double> &heKappa, std::vector<double> &_x, const int faceSize) {
+    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+    int position = faceSize;
+    for (auto it = heKappa.begin(); it != heKappa.end(); ++it) {
+        auto he = trimesh_.halfedge_handle(it->first);
+        periodJump[he] = _x[position++];
+    }
 }

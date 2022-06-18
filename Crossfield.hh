@@ -133,6 +133,8 @@ private:
     TriMesh &trimesh_;
     std::vector<int> &heInRange_;
     std::vector<int> &heConstraints_;
+
+    void setPJProp(std::map<int, double> &heKappa, std::vector<double> &_x, const int faceSize);
 };
 
 
