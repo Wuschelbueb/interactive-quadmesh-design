@@ -71,7 +71,7 @@ private:
 
     std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
 
-    CMatrixType getHessian(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
+    CMatrixType getHessian(const int rhsSizePartOne, const int rhsSizePartTwo);
 
     gmm::row_matrix<gmm::wsvector<double>>
     getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
@@ -96,7 +96,7 @@ private:
 
     void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
 
-    void getEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_H);
 
     void
     checkBoundaryAndUniqueFace(const OpenMesh::VertexHandle &vh_i, const OpenMesh::FaceHandle &fh, CMatrixType &_H);
@@ -144,6 +144,9 @@ private:
     void updateStack(TriMesh::FaceHalfedgeIter &he, std::queue<OpenMesh::FaceHandle> &stack);
 
     void setFaceStatusToFalse();
+
+    std::vector<int>
+    getIdxToRound(int nbVerticesUaV, int jkValues, std::vector<int> &singularities, std::vector<int> &onlyBoundaries);
 };
 
 
