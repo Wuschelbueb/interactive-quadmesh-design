@@ -64,6 +64,7 @@ void GlobalParametrization::getGlobalParam() {
     csolver.misolver().set_cg_error(1e-3);
     csolver.misolver().set_multiple_rounding();
     csolver.solve(_constraints, _H, _x, _rhs, _idx_to_round);
+    saveSolAsCoord(_x, faces, singularities, cutGraphWoBoundary, nbVerticesUaV, jkValues);
     std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
     for (auto it = _x.begin(); it != _x.end(); ++it) {
         xVector << "Pos U: " << *it++ << " Pos V: " << *it << std::endl;
@@ -895,6 +896,8 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
     //feature edge constraint
     //not yet implemented
 
+    //todo jk values missing? figure their position out
+
     //singularity constraint
     for (auto i: singularities) {
         auto vh = make_smart(trimesh_.vertex_handle(i), trimesh_);
@@ -907,3 +910,18 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
     trimesh_.release_vertex_status();
     return _idx_to_round;
 }
+
+void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces,
+                                           std::vector<int> &singularities, std::vector<int> &cutGraphWoBoundary,
+                                           int nbVerticesUaV, int jkValues) {
+    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
+    //todo figure jk position out
+    //get position of each vertex -> get UV property and vertexapperance
+    //assign solution to u-v value -> is at the same location in sol vertex as property
+    //extract jk values and add them to the according vertices
+    //need 2 new properties, u and v -> which contain solution: u'p[i]= _x[i]+j
+}
+
+

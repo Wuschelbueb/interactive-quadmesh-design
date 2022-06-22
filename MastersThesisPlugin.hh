@@ -12,13 +12,14 @@
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include "MastersThesisToolbar.hh"
 
-class MastersThesisPlugin : public QObject, BaseInterface, ToolboxInterface, LoggingInterface, LoadSaveInterface {
+class MastersThesisPlugin
+        : public QObject, BaseInterface, ToolboxInterface, TextureInterface, LoggingInterface, LoadSaveInterface {
 Q_OBJECT
     Q_INTERFACES(BaseInterface)
+    Q_INTERFACES(TextureInterface)
     Q_INTERFACES(ToolboxInterface)
     Q_INTERFACES(LoggingInterface)
     Q_INTERFACES(LoadSaveInterface)
-//    Q_INTERFACES(TextureInterface)
 
 
 #if QT_VERSION >= 0x050000
@@ -46,24 +47,24 @@ signals:
     void updatedObject(int _id, const UpdateType &_type);
 
     // Texture interface
-    // tell OpenFlipper about the texture we want to use
-//    void addTexture(QString _textureName, QString _filename, uint dimension);
-//
-//    // tell OpenFlipper that our texture (coordinates) have changed
-//    void updatedTextures(QString, int);
-//
-//    void updatedTexture(QString);
-//
-//    // tell OpenFlipper which texture settings we want to use
-//    void setTextureMode(QString _textureName, QString _mode);
-//
-//    // tell OpenFlipper to use the texture with name _textureName
-//    void switchTexture(QString _textureName);
+//     tell OpenFlipper about the texture we want to use
+    void addTexture(QString _textureName, QString _filename, uint dimension);
+
+    // tell OpenFlipper that our texture (coordinates) have changed
+    void updatedTextures(QString, int);
+
+    void updatedTexture(QString);
+
+    // tell OpenFlipper which texture settings we want to use
+    void setTextureMode(QString _textureName, QString _mode);
+
+    // tell OpenFlipper to use the texture with name _textureName
+    void switchTexture(QString _textureName);
 
     /** \brief emit this signal if you want to switch the texture of a specific object
      * This signal can be called from any thread.\n
      */
-//    void switchTexture(QString _textureName, int _id);
+    void switchTexture(QString _textureName, int _id);
 
 
 private slots:
@@ -73,6 +74,7 @@ private slots:
 
     void pluginsInitialized();
 
+    const char *texture_name() const { return "yourTextureName"; }
 
 public :
 
@@ -89,6 +91,8 @@ public slots:
     void slot_get_dualGraph();
 
     void slot_get_global_param();
+
+    void slot_get_2d_texture();
 
 private:
     MastersThesisToolbar *tool_;

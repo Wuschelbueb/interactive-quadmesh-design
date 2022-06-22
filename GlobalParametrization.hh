@@ -144,6 +144,10 @@ private:
     getIdxToRound(int nbVerticesUaV, int jkValues, std::vector<int> &singularities, std::vector<int> &onlyBoundaries);
 
     TriMesh &trimesh_;
+
+    void
+    saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces, std::vector<int> &singularities, std::vector<int>& cutGraphWoBoundary,int nbVerticesUaV,
+                   int jkValues);
 };
 
 
