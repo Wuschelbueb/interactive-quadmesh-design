@@ -53,13 +53,13 @@ private:
 
     std::vector<int> createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities);
 
-    void initProperties(std::vector<int> &dualGraphVertices, const bool first_it);
+    void initProperties(std::vector<int> &cutGraphVertices, const bool first_it);
 
     int vertexGetSmallestDist();
 
     void calculateVDijkstra(const int i);
 
-    void addPathToCutGraph(std::vector<int> &dualGraphVertices, std::vector<int> &complementHEdges, const int i,
+    void addPathToCutGraph(std::vector<int> &cutGraphVertices, std::vector<int> &complementHEdges, const int i,
                            std::vector<int> &cutGraphWoBoundary);
 
     void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);

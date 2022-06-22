@@ -98,9 +98,6 @@ private:
 
     void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_H);
 
-    void
-    checkBoundaryAndUniqueFace(const OpenMesh::VertexHandle &vh_i, const OpenMesh::FaceHandle &fh, CMatrixType &_H);
-
     void colorCompHEdges(const std::vector<int> &complementEdges);
 
     std::vector<int> getComplementMeshSel();
@@ -118,8 +115,6 @@ private:
     void checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &face, OpenMesh::FaceHandle &fh_pred);
 
     void tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh);
-
-    TriMesh &trimesh_;
 
     void createSectorsCutGraph(std::vector<int> &singularities);
 
@@ -147,6 +142,8 @@ private:
 
     std::vector<int>
     getIdxToRound(int nbVerticesUaV, int jkValues, std::vector<int> &singularities, std::vector<int> &onlyBoundaries);
+
+    TriMesh &trimesh_;
 };
 
 

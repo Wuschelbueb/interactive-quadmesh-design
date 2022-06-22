@@ -286,11 +286,12 @@ Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, doub
 
 Crossfield::CMatrixType
 Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
-    trimesh_.release_halfedge_status();
-    trimesh_.release_face_status();
     // request to change the status
     trimesh_.request_halfedge_status();
     trimesh_.request_face_status();
+    for (auto fh: trimesh_.faces()) {
+        trimesh_.status(fh).set_tagged(false);
+    }
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     int counter = 0, iteration = 0, pj_start = faces.size(), n = heKappa.size() + faces.size();
     gmm::col_matrix<gmm::wsvector<double>> _H(n, n);
@@ -325,6 +326,8 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         iteration++;
     }
     gmm::clean(_H, 1E-10);
+    trimesh_.release_halfedge_status();
+    trimesh_.release_face_status();
     return _H;
 }
 
@@ -382,13 +385,15 @@ std::map<int, double> Crossfield::getMapHeKappa(const std::vector<int> &faces) {
 
 void Crossfield::getStatusNeigh(const OpenMesh::FaceHandle fh, const OpenMesh::FaceHandle fh_neigh,
                                 std::map<int, double> &heKappa) {
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
     auto constraint_angle = OpenMesh::FProp<double>(trimesh_, "constraint_angle");
     double kappa = DBL_MAX;
     std::pair<int, int> commonEdge = {INT_MAX, INT_MAX};
 //    std::cout << "\t\tin getStatusNeigh function" << std::endl;
     // neighbour needs to be in faces
-    if (trimesh_.status(fh_neigh).tagged()) {
+    //trimesh_.status(fh_neigh).tagged()
+    if (faceSel[fh_neigh]) {
         // get index of ref edges
         int refEdgeMain = referenceHeIdx[fh];
         int refEdgeNeigh = referenceHeIdx[fh_neigh];
@@ -466,12 +471,13 @@ void Crossfield::addKappaHeToMap(const std::pair<int, int> commonEdge, const dou
 }
 
 std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
-    // status needs to be released before using, in case it still has saved some stuff from before
-    trimesh_.release_halfedge_status();
-    trimesh_.release_face_status();
+
     // request to change the status
     trimesh_.request_halfedge_status();
     trimesh_.request_face_status();
+    for (auto fh: trimesh_.faces()) {
+        trimesh_.status(fh).set_tagged(false);
+    }
     std::vector<int> faces;
     int temp = INT_MAX;
     // assign constraint edges to faces as property
@@ -485,6 +491,8 @@ std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
     }
     colorHEdges();
     colorFaces(faces);
+    trimesh_.release_halfedge_status();
+    trimesh_.release_face_status();
     return faces;
 }
 
@@ -562,7 +570,6 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
 
 void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<int, double> &heKappa,
                                   const std::vector<double> &_x) {
-    trimesh_.release_vertex_status();
     // request to change the status
     trimesh_.request_vertex_status();
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
@@ -578,6 +585,7 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
             }
         }
     }
+    trimesh_.release_vertex_status();
 }
 
 void

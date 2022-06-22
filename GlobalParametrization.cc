@@ -16,25 +16,24 @@ void GlobalParametrization::getGlobalParam() {
     std::vector<int> complementHEdges = getComplementMeshSel();
     removeOpenPaths(complementHEdges);
     removeRedundantEdges(complementHEdges);
-    //just for visualization
-    colorCompHEdges(complementHEdges);
+//    //just for visualization
     std::vector<int> onlyBoundaries = complementHEdges;
     std::vector<int> cutGraphWoBoundary;
 //    add path from boundary to singularity to cut graph
     dualGraph.completeDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
     createSectorsCutGraph(singularities);
     fixRotationsCrossBoundaryComp(complementHEdges, singularities, faces);
-//    colorCompHEdges(cutGraphWoBoundary);
+//    to visualize cutGraph with or without edges
+    colorCompHEdges(complementHEdges);
     int nbVerticesUaV = createVertexPosParamDomain(faces);
     int jkValues = cutGraphWoBoundary.size();
     std::cout << "nbVerticesUaV: " << nbVerticesUaV << " and jkValues: " << jkValues << std::endl;
-
+//
     std::vector<double> _x(nbVerticesUaV + jkValues, 0.0);
     std::vector<double> _rhs = getRhs(faces, nbVerticesUaV, jkValues);
     std::vector<int> _idx_to_round = getIdxToRound(nbVerticesUaV, jkValues, singularities, onlyBoundaries);
     CMatrixType _H = getHessian(nbVerticesUaV, jkValues);
     RMatrixType _constraints = getConstraints(nbVerticesUaV, cutGraphWoBoundary, singularities);
-
 //    std::ofstream hessian("/home/wuschelbueb/Desktop/hessian_matrix.txt");
 //    hessian << _H;
 //    hessian.close();
@@ -51,7 +50,6 @@ void GlobalParametrization::getGlobalParam() {
 //    std::ofstream cons("/home/wuschelbueb/Desktop/constraints.txt");
 //    cons << _constraints << std::endl;
 //    cons.close();
-
     std::cout << "Calculation of Global Parametrization\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
               << gmm::mat_nrows(_constraints)
               << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
@@ -66,12 +64,11 @@ void GlobalParametrization::getGlobalParam() {
     csolver.misolver().set_cg_error(1e-3);
     csolver.misolver().set_multiple_rounding();
     csolver.solve(_constraints, _H, _x, _rhs, _idx_to_round);
-//    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
-//    for (auto it = _x.begin(); it != _x.end(); ++it) {
-//        xVector << "Pos U: " << *it++ << " Pos V: " << *it << std::endl;
-//    }
-//    xVector.close();
-    std::cout << "end of code\n";
+    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
+    for (auto it = _x.begin(); it != _x.end(); ++it) {
+        xVector << "Pos U: " << *it++ << " Pos V: " << *it << std::endl;
+    }
+    xVector.close();
 }
 
 std::vector<int> GlobalParametrization::getSingularities() {
@@ -88,7 +85,6 @@ std::vector<int> GlobalParametrization::getSingularities() {
 }
 
 void GlobalParametrization::removeOpenPaths(std::vector<int> &complementHEdges) {
-    trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
     int currentIter = complementHEdges.size(), prevIter = INT_MAX;
     while (currentIter != prevIter) {
@@ -98,6 +94,7 @@ void GlobalParametrization::removeOpenPaths(std::vector<int> &complementHEdges) 
         prevIter = currentIter;
         currentIter = complementHEdges.size();
     }
+    trimesh_.release_halfedge_status();
 }
 
 void GlobalParametrization::removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges) {
@@ -159,14 +156,18 @@ void GlobalParametrization::colorCompHEdges(const std::vector<int> &complementEd
 }
 
 std::vector<int> GlobalParametrization::getComplementMeshSel() {
+    trimesh_.request_halfedge_status();
+    for (auto heh: trimesh_.halfedges()) {
+        trimesh_.status(heh).set_tagged(false);
+    }
     std::vector<int> complementHEdges;
-    trimesh_.release_halfedge_status();
     tagEdgesFromDualSpanningTree();
     for (auto heh: trimesh_.halfedges()) {
         if (!trimesh_.status(heh).tagged()) {
             complementHEdges.push_back(heh.idx());
         }
     }
+    trimesh_.release_halfedge_status();
     return complementHEdges;
 }
 
@@ -199,7 +200,6 @@ GlobalParametrization::checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &
 
 void
 GlobalParametrization::tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh) {
-    trimesh_.request_halfedge_status();
     auto eh = trimesh_.edge_handle(*fhe_pred_it);
     if ((fhe_pred_it->idx() == oheh.idx())) {
         auto heh = trimesh_.opposite_halfedge_handle(oheh);
@@ -220,7 +220,6 @@ std::vector<int> GlobalParametrization::getFaceVec() {
 }
 
 int GlobalParametrization::createVertexPosParamDomain(std::vector<int> &faces) {
-    trimesh_.release_vertex_status();
     trimesh_.request_vertex_status();
     int countVertices = 0;
     for (int i: faces) {
@@ -231,6 +230,7 @@ int GlobalParametrization::createVertexPosParamDomain(std::vector<int> &faces) {
             }
         }
     }
+    trimesh_.release_vertex_status();
     return countVertices;
 }
 
@@ -528,7 +528,6 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandl
 }
 
 void GlobalParametrization::createSectorsCutGraph(std::vector<int> &singularities) {
-    trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
     int sector = 1;
     for (int singularity: singularities) {
@@ -539,6 +538,7 @@ void GlobalParametrization::createSectorsCutGraph(std::vector<int> &singularitie
             propagateForSectors(sector, startOfSectors, singularities);
         }
     }
+    trimesh_.release_halfedge_status();
 }
 
 void GlobalParametrization::initVectorStartSec(const int singularity,
@@ -634,7 +634,6 @@ void GlobalParametrization::fixRotationsCrossBoundaryComp(std::vector<int> &comp
                                                           std::vector<int> &singularities, std::vector<int> &faces) {
     auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     trimesh_.request_face_status();
-    trimesh_.release_halfedge_status();
     trimesh_.request_halfedge_status();
     auto temp = trimesh_.face_handle(faces[0]);
     std::queue<OpenMesh::FaceHandle> stack;
@@ -648,6 +647,7 @@ void GlobalParametrization::fixRotationsCrossBoundaryComp(std::vector<int> &comp
         }
         stack.pop();
     }
+    trimesh_.release_halfedge_status();
     trimesh_.release_face_status();
 }
 
@@ -712,7 +712,6 @@ GlobalParametrization::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, cons
 gmm::row_matrix<gmm::wsvector<double>>
 GlobalParametrization::getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
                                       std::vector<int> &singularities) {
-    trimesh_.release_vertex_status();
     trimesh_.request_vertex_status();
     int row_size = getRowSizeAndStatus();
     int col_size = nbVerticesUaV + cutGraphWoBoundary.size(); //j & k values + vertex U and V positions
@@ -720,6 +719,7 @@ GlobalParametrization::getConstraints(const int nbVerticesUaV, std::vector<int> 
     gmm::row_matrix<gmm::wsvector<double>> _constraints(row_size + singularity, col_size + 1);
     setZeroPoint(singularities, _constraints);
     getConstraintsMatrix(jkStartCounter, cutGraphWoBoundary, _constraints);
+    trimesh_.release_vertex_status();
     return _constraints;
 }
 
@@ -870,7 +870,6 @@ void GlobalParametrization::setFaceStatusToFalse() {
 
 std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkValues, std::vector<int> &singularities,
                                                       std::vector<int> &onlyBoundaries) {
-    trimesh_.release_vertex_status();
     trimesh_.request_vertex_status();
     for (auto vh: trimesh_.vertices()) {
         trimesh_.status(vh).set_tagged(false);
@@ -905,5 +904,6 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
             trimesh_.status(vh).set_tagged(true);
         }
     }
+    trimesh_.release_vertex_status();
     return _idx_to_round;
 }
