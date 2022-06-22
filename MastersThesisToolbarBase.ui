@@ -48,6 +48,9 @@
          <property name="text">
           <string>calclulate Dijkstra</string>
          </property>
+         <property name="autoDefault">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item row="0" column="1">
@@ -59,7 +62,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="DualG">
+     <widget class="QWidget" name="Crossfield">
       <attribute name="title">
        <string>Dual Graph</string>
       </attribute>
@@ -68,6 +71,20 @@
         <widget class="QPushButton" name="getDualGraph">
          <property name="text">
           <string>Dual Graph</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="GlobalParam">
+      <attribute name="title">
+       <string>Global Param</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_4">
+       <item row="0" column="0">
+        <widget class="QPushButton" name="getGlobalParam">
+         <property name="text">
+          <string>Global Parametrization</string>
          </property>
         </widget>
        </item>
