@@ -924,7 +924,7 @@ void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x, std::vector<
                                            std::vector<int> &singularities, std::vector<int> &cutGraphWoBoundary,
                                            int nbVerticesUaV, int jkValues) {
     trimesh_.request_vertex_status();
-    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
+    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     //init status
     initPropForSolVector();
 
@@ -968,7 +968,7 @@ void GlobalParametrization::getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedg
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
-    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
+    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     if (!he.to().tagged2()) {
         // should more or less look like that.
         auto vh = he.to();
@@ -977,14 +977,14 @@ void GlobalParametrization::getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedg
         int posV = vertexPosVi[vh] + posTwo;
         double u = _x[posU] + _x[jkValues++];
         double v = _x[posV] + _x[jkValues++];
-        Point p = {u, v, 0};
+        OpenMesh::Vec2d p = {u, v};
         solCoordSysUV[vh].push_back(p);
     }
 }
 
 void GlobalParametrization::initPropForSolVector() {
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
-    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
+    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     for (auto vh: trimesh_.vertices()) {
         trimesh_.status(vh).set_tagged(false);
         // needed to handle cutGraphWoBoundary
@@ -1000,14 +1000,14 @@ void GlobalParametrization::initPropForSolVector() {
 void GlobalParametrization::getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
-    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
+    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
         if (!fv_it->tagged()) {
             int posU = vertexPosUi[*fv_it];
             int posV = vertexPosVi[*fv_it];
             double u = _x[posU];
             double v = _x[posV];
-            Point p = {u, v, 0};
+            OpenMesh::Vec2d p = {u, v};
             solCoordSysUV[*fv_it].push_back(p);
             trimesh_.status(*fv_it).set_tagged(true);
         }
