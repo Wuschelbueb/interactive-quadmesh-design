@@ -111,7 +111,8 @@ private:
     void setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize, const std::map<int, double> &heKappa,
                           const std::vector<double> &_x);
 
-    void getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ, const int faceSize, const std::map<int, double> &heKappa,
+    void getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
+                     const int faceSize, const std::map<int, double> &heKappa,
                      const std::vector<double> &_x);
 
     void setRotThetaOfVectorField(const std::vector<int> &faces, const std::vector<double> _x);
