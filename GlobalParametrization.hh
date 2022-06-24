@@ -148,6 +148,12 @@ private:
     void
     saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces, std::vector<int> &singularities, std::vector<int>& cutGraphWoBoundary,int nbVerticesUaV,
                    int jkValues);
+
+    void getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> & _x, int &jkValues);
+
+    void initPropForSolVector();
+
+    void getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x);
 };
 
 
