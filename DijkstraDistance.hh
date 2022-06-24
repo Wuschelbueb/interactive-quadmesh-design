@@ -17,11 +17,13 @@
 class DijkstraDistance {
 public:
     using Point = ACG::Vec3d;
+
+    void cleanMeshOfProps();
+
 public:
     DijkstraDistance(TriMesh &trimesh) : trimesh_{trimesh} {}
 
-    ~DijkstraDistance() {
-    }
+    ~DijkstraDistance() {}
 
 public:
 

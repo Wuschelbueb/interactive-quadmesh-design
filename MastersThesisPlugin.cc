@@ -37,6 +37,9 @@ void MastersThesisPlugin::slot_get_boundary() {
 
         if (trimesh) {
             DijkstraDistance dijkDistMesh{*trimesh};
+            dijkDistMesh.cleanMeshOfProps();
+            emit updateView();
+            emit updatedObject(o_it->id(), UPDATE_ALL);
             heConstraints = dijkDistMesh.getHeConstraints();
             std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
             includedHEdges = dijkDistMesh.getHeVectorOfSelection(includedNodes);

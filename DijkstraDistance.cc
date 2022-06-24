@@ -429,3 +429,154 @@ void DijkstraDistance::getSelectedFaces(std::vector<int> &constraints) {
         }
     }
 }
+
+// removes all properties, so if we run again with different params, there is no conflict
+// probably not the right way to do it.
+void DijkstraDistance::cleanMeshOfProps() {
+//    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, std::vector<Point>>(trimesh_, "solCoordSysUV")) {
+        auto propH = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, bool>(trimesh_, "faceSel")) {
+        auto propH = OpenMesh::FProp<bool>(trimesh_, "faceSel").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto heColor = OpenMesh::HProp<int>(trimesh_, "heColor");
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, int>(trimesh_, "heColor")) {
+        auto propH = OpenMesh::HProp<int>(trimesh_, "heColor").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, double>(trimesh_, "vertexDist")) {
+        auto propH = OpenMesh::VProp<double>(trimesh_, "vertexDist").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexOrigin")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexOrigin").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexPredecessor")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexAppearanceCG")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, bool>(trimesh_, "cutGraphHe")) {
+        auto propH = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, double>(trimesh_, "dualGraphDist")) {
+        auto propH = OpenMesh::FProp<double>(trimesh_, "dualGraphDist").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "dualGraphOrigin")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "dualGraphPred")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "dualGraphPred").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "cutGraphFZone")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
+    if (OpenMesh::hasProperty<OpenMesh::EdgeHandle, int>(trimesh_, "borderDualG")) {
+        auto propH = OpenMesh::EProp<int>(trimesh_, "borderDualG").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, double>(trimesh_, "distanceBaryCenter")) {
+        auto propH = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "origin_constraint")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "origin_constraint").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "predecessor_face")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "predecessor_face").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, int>(trimesh_, "periodJump")) {
+        auto propH = OpenMesh::HProp<int>(trimesh_, "periodJump").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "positionHessianMatrix")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "currentPJ")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "currentPJ").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, int>(trimesh_, "referenceHeIdx")) {
+        auto propH = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorField")) {
+        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorField").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotOne")) {
+        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotTwo")) {
+        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto constraint_angle = OpenMesh::FProp<double>(trimesh_, "constraint_angle");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, double>(trimesh_, "constraint_angle")) {
+        auto propH = OpenMesh::FProp<double>(trimesh_, "constraint_angle").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    //    auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, double>(trimesh_, "crossFieldIdx")) {
+        auto propH = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, double>(trimesh_, "vertexPosUi")) {
+        auto propH = OpenMesh::VProp<double>(trimesh_, "vertexPosUi").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexPosVi")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexPosVi").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto uVectorFieldRotThree = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotThree")) {
+        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+//    auto uVectorFieldRotFour= OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour");
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotFour")) {
+        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
+    trimesh_.garbage_collection();
+}
