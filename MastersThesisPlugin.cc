@@ -2,8 +2,7 @@
 #include "DijkstraDistance.hh"
 #include "Crossfield.hh"
 #include "GlobalParametrization.hh"
-
-typedef OpenMesh::TriMesh_ArrayKernelT<> MyMesh;
+#include "Get2DTexture.h"
 
 void MastersThesisPlugin::initializePlugin() {
     tool_ = new MastersThesisToolbar();
@@ -88,32 +87,34 @@ void MastersThesisPlugin::slot_get_2d_texture() {
         // create mesh
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
-        std::cout << "hello 2D texture\n";
+        if (trimesh) {
+            Get2DTexture mesh{*trimesh};
+            std::cout << texture_name() << std::endl;
 
-        // copy scale texture coordinates to mesh property and set view mode
-//        double scale = tool_->uvScaleSpinBox->value();
-//        OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture;
-//        if (!trimesh->get_property_handle(hp_texture, texture_name())) {
-//            trimesh->add_property(hp_texture, texture_name());
-//        }
-//
-//        double u_off = tool_->u_offset_sb->value();
-//        double v_off = tool_->v_offset_sb->value();
-//
-//        for (TriMesh::FaceIter f_it = trimesh->faces_begin(); f_it != trimesh->faces_end(); f_it++) {
-//
-//            for (TriMesh::FaceHalfedgeIter fh_it = trimesh->fh_iter(*f_it); fh_it.is_valid(); fh_it++) {
-//                double u, v;
-//                polar_integrable_obj->get_uv_coordinates(*fh_it, u, v);
-//                trimesh->property(hp_texture, *fh_it) = ACG::Vec2d(scale * u + u_off, scale * v + v_off);
-//            }
-//        }
-//        emit switchTexture(texture_name(), o_it->id());
-//        emit updatedTextures(texture_name(), o_it->id());
-//
-//        PluginFunctions::setDrawMode(
-//                ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
+            // copy scale texture coordinates to mesh property and set view mode
+//          double scale = tool_->uvScaleSpinBox->value();
+            OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture;
+            if (!trimesh->get_property_handle(hp_texture, texture_name())) {
+                trimesh->add_property(hp_texture, texture_name());
+            }
+            mesh.initProperty(hp_texture);
+//            mesh.initProperty();
+//          double u_off = tool_->u_offset_sb->value();
+//          double v_off = tool_->v_offset_sb->value();
+            for (TriMesh::FaceIter f_it = trimesh->faces_begin(); f_it != trimesh->faces_end(); ++f_it) {
+                for (TriMesh::FaceHalfedgeIter fh_it = trimesh->fh_iter(*f_it); fh_it.is_valid(); ++fh_it) {
+                    double u, v;
+                    mesh.get2DTexture(fh_it, u, v);
+//                    std::cout << "halfedge " << fh_it->idx() << "\tu " << u << "\tv " << v << std::endl;
+                    trimesh->property(hp_texture, *fh_it) = {u, v};
+                }
+            }
+//            auto test = OpenMesh::getProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec3f>(trimesh, "quad");
+            emit switchTexture(texture_name(), o_it->id());
+            emit updatedTextures(texture_name(), o_it->id());
 
+            PluginFunctions::setDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
+        }
     }
 }
 

@@ -47,7 +47,7 @@ signals:
     void updatedObject(int _id, const UpdateType &_type);
 
     // Texture interface
-//     tell OpenFlipper about the texture we want to use
+    // tell OpenFlipper about the texture we want to use
     void addTexture(QString _textureName, QString _filename, uint dimension);
 
     // tell OpenFlipper that our texture (coordinates) have changed
@@ -74,7 +74,7 @@ private slots:
 
     void pluginsInitialized();
 
-    const char *texture_name() const { return "yourTextureName"; }
+    const char *texture_name() const { return "quad"; }
 
 public :
 
@@ -100,7 +100,6 @@ private:
     //store selected vertices
     std::vector<int> heConstraints;
     std::vector<int> includedHEdges;
-
 
 };
 
