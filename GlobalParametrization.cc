@@ -602,8 +602,16 @@ GlobalParametrization::propagation(OpenMesh::HalfedgeHandle &heh, int &sector, c
 
         //set heToVertex = element.to()
         heToVertex = newOutgoHe.to();
+        auto faceOppOfHeAfterToVertex = newOutgoHe.next().opp().face();
+        auto faceOppOfHeBeforeToVertex = newOutgoHe.prev().opp().face();
         //set cutGraphFZone = sector
         cutGraphFZone[newOutgoHe.face()] = sector;
+        if (!cutGraphHe[newOutgoHe.next()]) {
+            cutGraphFZone[faceOppOfHeAfterToVertex] = sector;
+        }
+        if (!cutGraphHe[newOutgoHe.prev()]) {
+            cutGraphFZone[faceOppOfHeBeforeToVertex] = sector;
+        }
         //check if heToVertex is singularity
         bool leafCheck = checkIfLeaf(heToVertex);
         if (leafCheck &&
@@ -801,45 +809,45 @@ GlobalParametrization::setConRows(int &counter, int &jkStartCounter, const int d
     switch (diff) {
         case 0: //0
             // u position of point p
-            _constraints(counter, vertexPosUi[vh] + posOne) = -1; //u_p
-            _constraints(counter, vertexPosUi[vh] + posTwo) = 1; // u'_p
+            _constraints(counter, vertexPosUi[vh] + posTwo) = -1; //u_p
+            _constraints(counter, vertexPosUi[vh] + posOne) = 1; // u'_p
             _constraints(counter++, jkStartCounter) = -1; //j
             // v position of point p
-            _constraints(counter, vertexPosVi[vh] + posOne) = -1;
-            _constraints(counter, vertexPosVi[vh] + posTwo) = 1;
+            _constraints(counter, vertexPosVi[vh] + posTwo) = -1;
+            _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter++, jkStartCounter + 1) = -1;
             break;
         case -3://-270 || 90
         case 1:
             // u position of point p
-            _constraints(counter, vertexPosVi[vh] + posOne) = 1; //-v_p
-            _constraints(counter, vertexPosUi[vh] + posTwo) = 1; //u'_p
+            _constraints(counter, vertexPosVi[vh] + posTwo) = 1; //-v_p
+            _constraints(counter, vertexPosUi[vh] + posOne) = 1; //u'_p
             _constraints(counter++, jkStartCounter) = -1; //j
             // v position of point p
-            _constraints(counter, vertexPosUi[vh] + posOne) = -1;
-            _constraints(counter, vertexPosVi[vh] + posTwo) = 1;
+            _constraints(counter, vertexPosUi[vh] + posTwo) = -1;
+            _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter++, jkStartCounter + 1) = -1;
             break;
         case -2://-180 || 180
         case 2:
             // u position of point p
-            _constraints(counter, vertexPosUi[vh] + posOne) = 1; //-u_p
-            _constraints(counter, vertexPosUi[vh] + posTwo) = 1; // u'_p
+            _constraints(counter, vertexPosUi[vh] + posTwo) = 1; //-u_p
+            _constraints(counter, vertexPosUi[vh] + posOne) = 1; // u'_p
             _constraints(counter++, jkStartCounter) = -1; //j
             // v position of point p
-            _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter, vertexPosVi[vh] + posTwo) = 1;
+            _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter++, jkStartCounter + 1) = -1;
             break;
         case -1://-90 || 270
         case 3:
             // u position of point p
-            _constraints(counter, vertexPosVi[vh] + posOne) = -1; //v_p
-            _constraints(counter, vertexPosUi[vh] + posTwo) = 1; //u'_p
+            _constraints(counter, vertexPosVi[vh] + posTwo) = -1; //v_p
+            _constraints(counter, vertexPosUi[vh] + posOne) = 1; //u'_p
             _constraints(counter++, jkStartCounter) = -1; //j
             // v position of point p
-            _constraints(counter, vertexPosUi[vh] + posOne) = 1;
-            _constraints(counter, vertexPosVi[vh] + posTwo) = 1;
+            _constraints(counter, vertexPosUi[vh] + posTwo) = 1;
+            _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter++, jkStartCounter + 1) = -1;
             break;
     }
@@ -867,6 +875,12 @@ int GlobalParametrization::getPositionConstraintRow(OpenMesh::SmartVertexHandle 
     std::sort(sectors.begin(), sectors.end());
     auto it1 = find(sectors.begin(), sectors.end(), cutGraphZone);
     int pos = it1 - sectors.begin();
+//    std::cout << "for vertex " << vh.idx() << " with cutzoneGraph " << cutGraphZone << " we get position " << pos
+//              << std::endl << "sector vector\n";
+//    for (auto j: sectors) {
+//        std::cout << j << "\t";
+//    }
+//    std::cout << std::endl;
     return pos;
 }
 
@@ -940,9 +954,9 @@ void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x, std::vector<
         getSolFromVerticesWOneApp(fh, _x);
     }
     //print solution
-//    for (auto vh: trimesh_.vertices()) {
-//        trimesh_.status(vh).set_tagged(false);
-//    }
+    for (auto vh: trimesh_.vertices()) {
+        trimesh_.status(vh).set_tagged(false);
+    }
 //    std::ofstream solutionVector("/home/wuschelbueb/Desktop/solutionVector.txt");
 //    for (auto f: faces) {
 //        auto fh = trimesh_.face_handle(f);
@@ -970,13 +984,14 @@ void GlobalParametrization::getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedg
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     if (!he.to().tagged2()) {
-        // should more or less look like that.
         auto vh = he.to();
-        int posTwo = getPositionConstraintRow(vh, cutGraphFZone[he.opp().face()]);
-        int posU = vertexPosUi[vh] + posTwo;
-        int posV = vertexPosVi[vh] + posTwo;
+        int posOne = getPositionConstraintRow(vh, cutGraphFZone[he.face()]);
+        int posU = vertexPosUi[vh] + posOne;
+        int posV = vertexPosVi[vh] + posOne;
         double u = _x[posU] + _x[jkValues++];
         double v = _x[posV] + _x[jkValues++];
+//        std::cout << "vertex " << vh.idx() << "\twith PosU " << posU - posOne << "\twith posOne: " << posOne
+//                  << "\nwith jk: " << _x[jkValues - 2] << "\tand: " << _x[jkValues - 1] << std::endl;
         OpenMesh::Vec2d p = {u, v};
         solCoordSysUV[vh].push_back(p);
     }
@@ -1008,6 +1023,7 @@ void GlobalParametrization::getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, s
             double u = _x[posU];
             double v = _x[posV];
             OpenMesh::Vec2d p = {u, v};
+            // std::cout << "vertex " << fv_it->idx() << "\twith posU: " << posU << std::endl;
             solCoordSysUV[*fv_it].push_back(p);
             trimesh_.status(*fv_it).set_tagged(true);
         }

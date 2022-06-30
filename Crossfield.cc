@@ -613,10 +613,9 @@ void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, d
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
     for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
         int position = 0;
-        OpenMesh::HalfedgeHandle oppHe = trimesh_.opposite_halfedge_handle(*vohe_it);
         auto it = heKappa.find(vohe_it->idx());
-        auto it2 = heKappa.find(oppHe.idx());
-        angleDefect += trimesh_.calc_sector_angle(oppHe);
+        auto it2 = heKappa.find(vohe_it->opp().idx());
+        angleDefect += trimesh_.calc_sector_angle(vohe_it->opp());
         if (it != heKappa.end()) {
             //return position of it in heKappa
             position = std::distance(std::begin(heKappa), it);
