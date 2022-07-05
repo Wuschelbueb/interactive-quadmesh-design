@@ -20,7 +20,7 @@ void GlobalParametrization::getGlobalParam() {
     std::vector<int> onlyBoundaries = complementHEdges;
     std::vector<int> cutGraphWoBoundary;
 //    add path from boundary to singularity to cut graph
-    dualGraph.completeDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
+    dualGraph.calcDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
     createSectorsCutGraph(singularities);
     fixRotationsCrossBoundaryComp(complementHEdges, singularities, faces);
 //    to visualize cutGraph with or without edges
@@ -573,6 +573,7 @@ GlobalParametrization::propagation(OpenMesh::HalfedgeHandle &heh, int &sector, c
     int idx = -1;
     while (!next_sing_found) {
         std::vector<OpenMesh::HalfedgeHandle> outGoingHe;
+        //fill vector with halfedges who are in cutgraph
         for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(heToVertex); voh_it.is_valid(); ++voh_it) {
             if (cutGraphHe[*voh_it]) {
                 outGoingHe.push_back(*voh_it);
@@ -606,10 +607,10 @@ GlobalParametrization::propagation(OpenMesh::HalfedgeHandle &heh, int &sector, c
         auto faceOppOfHeBeforeToVertex = newOutgoHe.prev().opp().face();
         //set cutGraphFZone = sector
         cutGraphFZone[newOutgoHe.face()] = sector;
-        if (!cutGraphHe[newOutgoHe.next()]) {
+        if (!cutGraphHe[newOutgoHe.next()] && faceOppOfHeAfterToVertex.is_valid()) {
             cutGraphFZone[faceOppOfHeAfterToVertex] = sector;
         }
-        if (!cutGraphHe[newOutgoHe.prev()]) {
+        if (!cutGraphHe[newOutgoHe.prev()] && faceOppOfHeBeforeToVertex.is_valid()) {
             cutGraphFZone[faceOppOfHeBeforeToVertex] = sector;
         }
         //check if heToVertex is singularity
@@ -1023,7 +1024,7 @@ void GlobalParametrization::getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, s
             double u = _x[posU];
             double v = _x[posV];
             OpenMesh::Vec2d p = {u, v};
-            // std::cout << "vertex " << fv_it->idx() << "\twith posU: " << posU << std::endl;
+//            std::cout << "vertex " << fv_it->idx() << "\twith posU: " << posU << std::endl;
             solCoordSysUV[*fv_it].push_back(p);
             trimesh_.status(*fv_it).set_tagged(true);
         }
