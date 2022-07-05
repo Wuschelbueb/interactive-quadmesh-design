@@ -13,7 +13,7 @@ void Crossfield::getCrossfield() {
     RMatrixType _constraints = getConstraintMatrix(heKappa, faces);
     std::vector<double> _x(heKappa.size() + faces.size(), 0.0);
     std::vector<double> _rhs = getRHS(heKappa, faces);
-    std::vector<int> _idx_to_round = getIdxToRound(heKappa, faces);
+    std::vector<int> _idx_to_round = getIdxToRound(heKappa, faces.size());
 //    std::cout << "Matrices before solver: " << std::endl;
 //    std::cout << "H: " << _H << std::endl;
 //
@@ -50,8 +50,9 @@ void Crossfield::getCrossfield() {
     RMatrixType _A = getMatrixA(faces, heKappa);
     std::vector<double> _b = getVectorb(heKappa);
     double energy = getEnergy(_A, _x, _b);
-    getCrossFieldIdx(faces, heKappa, _x);
     setPJProp(heKappa, _x, faces.size());
+    getCrossFieldIdx(faces, heKappa, _x);
+
 //    std::cout << "Energy: " << energy << std::endl;
 //        std::cout << "Matrices after solver: " << std::endl;
 //    std::cout << "H: " << _H << std::endl;
@@ -130,7 +131,7 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std:
     int n_col = heKappa.size() + faces.size();
     gmm::row_matrix<gmm::wsvector<double>> _constraints(n_row, n_col + cNplusOne);
     getThetaConstraints(n_col, counter, faceConstraints, _constraints);
-    getPJConstraints(heKappa, counter, pj_start, pjConstraints, _constraints);
+    getPJConstraints(heKappa, counter, pj_start, _constraints);
     try {
         if (counter != n_row) {
             throw counter;
@@ -178,13 +179,12 @@ void Crossfield::getThetaConstraints(const int n_col, int &counter, std::vector<
         double constraint = constraint_angle[fh];
         int position = positionHessianMatrix[fh];
         _constraints(counter, position) = 1.0;
-        _constraints(counter, n_col) = 1.0 * constraint;
+        _constraints(counter, n_col) = constraint;
         counter++;
     }
 }
 
 void Crossfield::getPJConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
-                                  const int &noOriginConst,
                                   gmm::row_matrix<gmm::wsvector<double>> &_constraints) {
     std::vector<int> faces;
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
@@ -208,9 +208,8 @@ void Crossfield::getPJConstraints(const std::map<int, double> &heKappa, int &cou
 //              << heKappa.size() - temp << " pj constraints\n";
 }
 
-std::vector<int> Crossfield::getIdxToRound(const std::map<int, double> &heKappa, const std::vector<int> &faces) {
+std::vector<int> Crossfield::getIdxToRound(const std::map<int, double> &heKappa, int pj_start) {
     std::vector<int> _idx_to_round;
-    int pj_start = faces.size();
     for (const auto &i: heKappa) {
         _idx_to_round.push_back(pj_start++);
     }
@@ -241,7 +240,7 @@ void Crossfield::getSum(const int i, std::vector<double> &_rhs,
     OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
     for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
         // this condition is necessary because an opposite face doesn't exist if the opposite heh is boundary
-        sum += setSum(fh, *fh_it, heKappa);
+        sum += extractKappa(*fh_it, heKappa);
     }
     int position = positionHessianMatrix[fh];
 //    std::cout << "face index:\t\t" << fh.idx() << " \nposition in hessian matrix: " << position << std::endl;
@@ -249,7 +248,7 @@ void Crossfield::getSum(const int i, std::vector<double> &_rhs,
 }
 
 double
-Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa) {
+Crossfield::extractKappa(OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa) {
     double sum = 0;
     OpenMesh::HalfedgeHandle opposite_heh = trimesh_.opposite_halfedge_handle(fh_it);
     if (!trimesh_.is_boundary(opposite_heh)) {
@@ -269,7 +268,7 @@ Crossfield::setSum(OpenMesh::FaceHandle fh, OpenMesh::HalfedgeHandle fh_it, cons
                 throw 404;
             }
         } catch (int x) {
-            std::cerr << "setSum: Opposite Halfedges can't both be in heKappa vector!\n";
+            std::cerr << "extractKappa: Opposite Halfedges can't both be in heKappa vector!\n";
         }
     }
     return sum;
@@ -286,13 +285,13 @@ Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, doub
 
 Crossfield::CMatrixType
 Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
+    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     // request to change the status
     trimesh_.request_halfedge_status();
     trimesh_.request_face_status();
     for (auto fh: trimesh_.faces()) {
         trimesh_.status(fh).set_tagged(false);
     }
-    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     int counter = 0, iteration = 0, pj_start = faces.size(), n = heKappa.size() + faces.size();
     gmm::col_matrix<gmm::wsvector<double>> _H(n, n);
     // indexes the faces from 0 to n
@@ -410,11 +409,9 @@ std::pair<int, int>
 Crossfield::getCommonEdgeBetweenTriangles(const OpenMesh::FaceHandle fh, const OpenMesh::FaceHandle fh_neigh) {
     std::pair<int, int> commonEdge = {INT_MAX, INT_MAX};
     for (TriMesh::FaceHalfedgeIter fhe_it_main = trimesh_.fh_iter(fh); fhe_it_main.is_valid(); ++fhe_it_main) {
-        OpenMesh::HalfedgeHandle oheh = trimesh_.opposite_halfedge_handle(*fhe_it_main);
-        OpenMesh::FaceHandle fh_temp = trimesh_.face_handle(oheh);
-        if (fh_temp == fh_neigh) {
+        if (fhe_it_main->opp().face() == fh_neigh) {
             commonEdge.first = fhe_it_main->idx();
-            commonEdge.second = oheh.idx();
+            commonEdge.second = fhe_it_main->opp().idx();
 //            std::cout << "\t\t\t\tcommonedge: " << commonEdge.first << " and " << commonEdge.second
 //                      << "\n\t\t\t\twhile opposites are " << trimesh_.opposite_halfedge_handle(*fhe_it_main).idx()
 //                      << " and "
@@ -544,6 +541,9 @@ void Crossfield::getConstraintAngleAndVecField(const std::vector<int> &faces) {
         double xComponent = OpenMesh::dot(u, u);
         double yComponent = OpenMesh::dot(u, v);
         alpha = std::atan2(yComponent, xComponent);
+        if (alpha < 1E-3 && alpha > -1E-3) {
+            alpha = 0;
+        }
         constraint_angle[fh] = alpha;
 //        std::cout << "theta_c (" << i << ") is: " << alpha * 180 / M_PI << " degrees." << std::endl;
         uVectorField[fh] = u;
@@ -573,6 +573,7 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
     // request to change the status
     trimesh_.request_vertex_status();
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
+    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     for (auto vh: trimesh_.vertices()) {
         crossFieldIdx[vh] = 0;
         trimesh_.status(vh).set_tagged(false);
@@ -582,6 +583,54 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
         for (TriMesh::FaceVertexIter v_it = trimesh_.fv_iter(fh); v_it.is_valid(); ++v_it) {
             if (!trimesh_.status(*v_it).tagged() && !trimesh_.is_boundary(*v_it)) {
                 setCrossFieldIdx(v_it, faces.size(), heKappa, _x);
+//            } else if (!trimesh_.status(*v_it).tagged() && trimesh_.is_boundary(*v_it)) {
+//                double idx = 0;
+//                TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*v_it);
+//                ++vohe_it;
+//                for (; vohe_it.is_valid(); ++vohe_it) {
+//                    // need to skip boundary sector
+//                    if (trimesh_.is_boundary(vohe_it->prev()))
+//                        continue;
+//                    // add sector angle
+//                    double sector_angle = std::acos(trimesh_.calc_edge_vector(*vohe_it).normalize()
+//                                                    | -trimesh_.calc_edge_vector(vohe_it->prev()).normalize());
+//                    idx += sector_angle;
+//                    // add connection angle, boundary case handled inside
+//                    const auto eh = trimesh_.edge_handle(*vohe_it);
+//                    const auto ehh = vohe_it->edge();
+//
+//
+//                    // at boundaries the connection is zero per definition
+//                    double angle = 0., pj = 0., kappa;
+//                    if (!trimesh_.is_boundary(vohe_it->edge())) {
+//                        int position = 0;
+//                        auto it = heKappa.find(vohe_it->idx());
+//                        auto it2 = heKappa.find(vohe_it->opp().idx());
+//                        if (it != heKappa.end()) {
+//                            //return position of it in heKappa
+//                            position = std::distance(std::begin(heKappa), it);
+//                            //with position and faceSize we can extract p_ij value of _x vector (solution)
+//                            pj += _x[faces.size() + position];
+//                            kappa += it->second;
+//                        } else if (it2 != heKappa.end()) {
+//                            position = std::distance(std::begin(heKappa), it2);
+//                            pj -= _x[faces.size() + position];
+//                            kappa -= it->second;
+//                        }
+//                        int pos1 = positionHessianMatrix[vohe_it->face()];
+//                        int pos2 = positionHessianMatrix[vohe_it->opp().face()];
+//                        double theta1 = shortenKappa(_x[pos1]);
+//                        double theta2 = shortenKappa(_x[pos2]);
+//                        pj < 0 ? pj - 0.5 : pj + 0.5;
+//
+//                        angle = theta2 - (theta1 + std::pow(-1, pj) * pj * 0.5 * M_PI + kappa);
+//                    }
+//                    idx += angle;
+//                }
+//                idx = (0.5 - idx / (2.0 * M_PI));
+//                idx < 0 ? idx - 0.5 : idx + 0.5;
+//                crossFieldIdx[*v_it] = idx;
+//                trimesh_.status(*v_it).set_tagged(true);
             }
         }
     }
@@ -596,13 +645,19 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
     double sumKappa = 0.0, angleDefect = 0.0, sumPJ = 0.0, intValBaseIdx = 0.0;
     //gets sumKappa, angleDefect and sumPJ values
     getCrFldVal(fv_it, sumKappa, angleDefect, sumPJ, faceSize, heKappa, _x);
-    intValBaseIdx = (1 / (2 * M_PI)) * ((2 * M_PI - angleDefect) + sumKappa);
+    intValBaseIdx = ((2 * M_PI - angleDefect) + sumKappa) / (2 * M_PI);
     double crossFldIdx = intValBaseIdx + (sumPJ / 4);
     //clean values close to zero
     if (crossFldIdx < 1E-2 && crossFldIdx > -1E-2) {
         crossFldIdx = 0;
     }
-    crossFldIdx = std::ceil(crossFldIdx * 100.0) / 100.0;
+//    double crossV2 = crossFldIdx * 4;
+//    crossV2 < 0 ? crossV2 - 0.5 : crossV2 + 0.5;
+//    int crossV2i = crossV2;
+//    std::cout << "Crossfield Index (" << fv_it->idx() << "): " << crossFldIdx << "\n\tafter ceil "
+//              << std::ceil(crossFldIdx * 100.0) / 100.0
+//              << "\n\tdiff rounding " << crossV2i << std::endl;
+//    crossFldIdx = std::ceil(crossFldIdx * 100.0) / 100.0;
     crossFieldIdx[*fv_it] = crossFldIdx;
     trimesh_.status(*fv_it).set_tagged(true);
 }
@@ -615,16 +670,16 @@ void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, d
         int position = 0;
         auto it = heKappa.find(vohe_it->idx());
         auto it2 = heKappa.find(vohe_it->opp().idx());
-        angleDefect += trimesh_.calc_sector_angle(vohe_it->opp());
+        angleDefect += trimesh_.calc_sector_angle(vohe_it->prev());
         if (it != heKappa.end()) {
             //return position of it in heKappa
             position = std::distance(std::begin(heKappa), it);
             //with position and faceSize we can extract p_ij value of _x vector (solution)
-            sumPJ += _x[faceSize + position];
+            sumPJ += periodJump[*vohe_it];
             sumKappa += it->second;
         } else if (it2 != heKappa.end()) {
             position = std::distance(std::begin(heKappa), it2);
-            sumPJ -= _x[faceSize + position];
+            sumPJ -= periodJump[vohe_it->opp()];
             sumKappa -= it2->second;
         }
     }
