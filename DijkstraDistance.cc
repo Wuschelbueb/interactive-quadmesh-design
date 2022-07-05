@@ -1,8 +1,8 @@
 #include "DijkstraDistance.hh"
 
 void
-DijkstraDistance::completeDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities,
-                                                 std::vector<int> &cutGraphWoBoundary) {
+DijkstraDistance::calcDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities,
+                                             std::vector<int> &cutGraphWoBoundary) {
     trimesh_.request_vertex_status();
     for (auto vh: trimesh_.vertices()) {
         trimesh_.status(vh).set_tagged(false);
@@ -136,7 +136,7 @@ void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
     trimesh_.request_face_status();
     initDualGraphProp(faces);
     calculateDGDijkstra(faces);
-    getBorder();
+    colorDualGraph();
     trimesh_.release_face_status();
 }
 
@@ -202,7 +202,7 @@ int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
     return idx;
 }
 
-void DijkstraDistance::getBorder() {
+void DijkstraDistance::colorDualGraph() {
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
     for (auto fh: trimesh_.faces()) {
@@ -245,16 +245,16 @@ std::vector<int>
 DijkstraDistance::calculateDijkstra(const std::vector<int> HeConstraints, const double refDist,
                                     const bool includeBoundary) {
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
-    std::vector<int> includedNodes;
+    std::vector<int> includedFaces;
     std::vector<int> constraintFaces = transformHehToFaces(HeConstraints);
-    dijkstraDistBaryCenter(includedNodes, refDist);
+    dijkstraDistBaryCenter(includedFaces, refDist);
     if (includeBoundary) {
-        includeBoundaryFaces(includedNodes, refDist);
+        includeBoundaryFaces(includedFaces, refDist);
     }
-    return includedNodes;
+    return includedFaces;
 }
 
-void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedNodes, const double refDist) {
+void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedFaces, const double refDist) {
     trimesh_.request_face_status();
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
@@ -267,7 +267,7 @@ void DijkstraDistance::dijkstraDistBaryCenter(std::vector<int> &includedNodes, c
             break;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(faceIdx);
         trimesh_.status(fh).set_tagged(true);
-        includedNodes.push_back(fh.idx());
+        includedFaces.push_back(fh.idx());
         for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
             Point origin = trimesh_.calc_face_centroid(fh);
             Point neighbour = trimesh_.calc_face_centroid(*ff_it);
@@ -337,9 +337,9 @@ void DijkstraDistance::includeBoundaryFaces(std::vector<int> &includedFaces, con
 }
 
 std::vector<int>
-DijkstraDistance::getHeVectorOfSelection(const std::vector<int> &includedNodes) {
+DijkstraDistance::getHeVectorOfSelection(const std::vector<int> &includedFaces) {
     std::vector<int> includedHe;
-    for (int i: includedNodes) {
+    for (int i: includedFaces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
             includedHe.push_back(fh_it->idx());
@@ -430,8 +430,6 @@ void DijkstraDistance::getSelectedFaces(std::vector<int> &constraints) {
     }
 }
 
-// removes all properties, so if we run again with different params, there is no conflict
-// probably not the right way to do it.
 void DijkstraDistance::cleanMeshOfProps() {
 //    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
     if (OpenMesh::hasProperty<OpenMesh::VertexHandle, std::vector<Point>>(trimesh_, "solCoordSysUV")) {
