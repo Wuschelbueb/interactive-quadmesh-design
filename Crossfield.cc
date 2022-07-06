@@ -125,7 +125,7 @@ std::vector<double> Crossfield::getVectorb(const std::map<int, double> &heKappa)
 gmm::row_matrix<gmm::wsvector<double>>
 Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std::vector<int> &faces) {
     int cNplusOne = 1, counter = 0, pj_start = faces.size();
-    std::vector<int> faceConstraints = getFaceConstraints();
+    std::vector<int> faceConstraints = getConstrainedHe();
     int pjConstraints = getAmountPJConstraints(faces);
     int n_row = faceConstraints.size() + pjConstraints;
     int n_col = heKappa.size() + faces.size();
@@ -143,16 +143,17 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std:
     return _constraints;
 }
 
-std::vector<int> Crossfield::getFaceConstraints() {
-    std::vector<int> faceConst;
+std::vector<int> Crossfield::getConstrainedHe() {
+    std::vector<int> faceConst, heConst;
     for (int i: heConstraints_) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
-        if ((std::find(faceConst.begin(), faceConst.end(), heh.idx()) == faceConst.end()) &&
-            !trimesh_.is_boundary(heh)) {
-            faceConst.push_back(heh.idx());
+        auto heh = make_smart(trimesh_.halfedge_handle(i), trimesh_);
+        if (heh.face().is_valid() &&
+            (std::find(faceConst.begin(), faceConst.end(), heh.face().idx()) == faceConst.end())) {
+            faceConst.push_back(heh.face().idx());
+            heConst.push_back(heh.idx());
         }
-    };
-    return faceConst;
+    }
+    return heConst;
 }
 
 int Crossfield::getAmountPJConstraints(const std::vector<int> &faces) {
@@ -477,12 +478,12 @@ std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
     }
     std::vector<int> faces;
     int temp = INT_MAX;
-    // assign constraint edges to faces as property
+    // add faces of constraint halfedges to faces vector and add reference halfedge
     for (int i: heConstraints_) {
         setRefHeToFace(i, faces);
     }
 
-    // assign non-constraint edges to faces as property
+    // add faces of non-constraint halfedges to faces vector
     for (int i: heInRange_) {
         setRefHeToFace(i, faces);
     }
@@ -501,9 +502,7 @@ void Crossfield::setRefHeToFace(const int i, std::vector<int> &faces) {
         if (!trimesh_.status(fh).tagged()) {
             // add reference edge to face
             referenceHeIdx[fh] = heh.idx();
-            // both halfedges need to be tagged, else it is possible opposite faces share an edge
             trimesh_.status(heh).set_tagged(true);
-//            trimesh_.status(trimesh_.opposite_halfedge_handle(heh)).set_tagged(true);
             trimesh_.status(fh).set_tagged(true);
             faces.push_back(fh.idx());
         }
@@ -532,21 +531,20 @@ void Crossfield::getConstraintAngleAndVecField(const std::vector<int> &faces) {
     auto constraint_angle = OpenMesh::FProp<double>(trimesh_, "constraint_angle");
     auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
     for (int i: faces) {
-        double alpha = 0.0;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(referenceHeIdx[fh]);
-        Point u = trimesh_.calc_edge_vector(heh).normalize();
+        Point u = trimesh_.calc_edge_vector(heh);
         Point v = u % trimesh_.calc_face_normal(fh);
-        v = v.normalize();
         double xComponent = OpenMesh::dot(u, u);
+        // should always be zero, since u is x-axis, 90deg and stuff
         double yComponent = OpenMesh::dot(u, v);
-        alpha = std::atan2(yComponent, xComponent);
+        double alpha = std::atan2(yComponent, xComponent);
         if (alpha < 1E-3 && alpha > -1E-3) {
             alpha = 0;
         }
+        uVectorField[fh] = u;
         constraint_angle[fh] = alpha;
 //        std::cout << "theta_c (" << i << ") is: " << alpha * 180 / M_PI << " degrees." << std::endl;
-        uVectorField[fh] = u;
     }
 }
 
@@ -662,6 +660,7 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
     trimesh_.status(*fv_it).set_tagged(true);
 }
 
+//todo error could be here
 void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
                              const int faceSize, const std::map<int, double> &heKappa,
                              const std::vector<double> &_x) {
@@ -724,7 +723,6 @@ double Crossfield::shortenKappa(const double kappa) {
 Crossfield::Point
 Crossfield::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta) {
     Point f_normal = trimesh_.calc_face_normal(fh).normalize();
-    //Rodrigues rotation formula
     Point rotVec = vec * cos(theta) - (f_normal % vec) * sin(theta) + f_normal * (vec | f_normal) * (1 - cos(theta));
     return rotVec;
 }

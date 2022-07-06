@@ -22,7 +22,7 @@ void GlobalParametrization::getGlobalParam() {
 //    add path from boundary to singularity to cut graph
     dualGraph.calcDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
     createSectorsCutGraph(singularities);
-    fixRotationsCrossBoundaryComp(complementHEdges, singularities, faces);
+    fixRotationsCrossBoundaryComp(faces);
 //    to visualize cutGraph with or without edges
     colorCompHEdges(complementHEdges);
     int nbVerticesUaV = createVertexPosParamDomain(faces);
@@ -32,10 +32,10 @@ void GlobalParametrization::getGlobalParam() {
     std::vector<double> _x(nbVerticesUaV + jkValues, 0.0);
     std::vector<double> _rhs = getRhs(faces, nbVerticesUaV, jkValues);
     std::vector<int> _idx_to_round = getIdxToRound(nbVerticesUaV, jkValues, singularities, onlyBoundaries);
-    CMatrixType _H = getHessian(nbVerticesUaV, jkValues);
+    CMatrixType _hessian = getHessian(nbVerticesUaV, jkValues);
     RMatrixType _constraints = getConstraints(nbVerticesUaV, cutGraphWoBoundary, singularities);
 //    std::ofstream hessian("/home/wuschelbueb/Desktop/hessian_matrix.txt");
-//    hessian << _H;
+//    hessian << _hessian;
 //    hessian.close();
 //    std::ofstream rhs("/home/wuschelbueb/Desktop/rhs.txt");
 //    for (auto i: _rhs) {
@@ -53,7 +53,8 @@ void GlobalParametrization::getGlobalParam() {
     std::cout << "Calculation of Global Parametrization\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
               << gmm::mat_nrows(_constraints)
               << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
-              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_H) << " and columns: " << gmm::mat_ncols(_H) << std::endl
+              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_hessian) << " and columns: " << gmm::mat_ncols(_hessian)
+              << std::endl
               << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
               << "Size of idx:\t\t" << _idx_to_round.size() << std::endl;
     COMISO::ConstrainedSolver csolver;
@@ -63,8 +64,8 @@ void GlobalParametrization::getGlobalParam() {
     csolver.misolver().set_local_error(1e-3);
     csolver.misolver().set_cg_error(1e-3);
     csolver.misolver().set_multiple_rounding();
-    csolver.solve(_constraints, _H, _x, _rhs, _idx_to_round);
-    saveSolAsCoord(_x, faces, singularities, cutGraphWoBoundary, nbVerticesUaV, jkValues);
+    csolver.solve(_constraints, _hessian, _x, _rhs, _idx_to_round);
+    saveSolAsCoord(_x, faces, cutGraphWoBoundary, jkValues);
 //    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
 //    for (auto it = _x.begin(); it != _x.end(); ++it) {
 //        xVector << "Pos U: " << *it++ << " Pos V: " << *it << std::endl;
@@ -76,9 +77,7 @@ std::vector<int> GlobalParametrization::getSingularities() {
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
     std::vector<int> singularities;
     for (auto vh: trimesh_.vertices()) {
-        if (crossFieldIdx[vh] < -1E-1) {
-            singularities.push_back(vh.idx());
-        } else if (crossFieldIdx[vh] > 1E-1) {
+        if (crossFieldIdx[vh] < -1E-1 || crossFieldIdx[vh] > 1E-1) {
             singularities.push_back(vh.idx());
         }
     }
@@ -181,7 +180,7 @@ void GlobalParametrization::tagEdgesFromDualSpanningTree() {
 void GlobalParametrization::checkIfFaceInSelection(OpenMesh::FaceHandle &face) {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
-    if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && faceSel[face] == true) {
+    if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && faceSel[face]) {
         OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
         checkIfEBetweenTriangleInDualGraph(face, fh_pre);
 
@@ -280,12 +279,12 @@ void GlobalParametrization::getPositionInnerNode(OpenMesh::VertexHandle &fv_it, 
 }
 
 void GlobalParametrization::setUpLocFaceCoordSys(const std::vector<int> &faces) {
-    gmm::col_matrix<std::vector<double>> _C = createCMatrix();
+    gmm::col_matrix<std::vector<double>> _abc = createCMatrix();
     std::vector<Point> edges(3);
     for (int i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         createEdgesAndLocalVUi(fh, edges);
-        createBasisTfMtx(fh, _C, edges);
+        createBasisTfMtx(fh, _abc, edges);
     }
 }
 
@@ -318,12 +317,12 @@ GlobalParametrization::createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh,
 }
 
 void
-GlobalParametrization::createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double>> &_C,
+GlobalParametrization::createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double>> &_abc,
                                         const std::vector<Point> &edges) {
     auto basisTransformationMtx = OpenMesh::FProp<gmm::row_matrix<std::vector<double>>>(trimesh_,
                                                                                         "basisTransformationMtx");
     gmm::row_matrix<std::vector<double>> _basisInv(3, 3);
-    gmm::row_matrix<std::vector<double>> _D(3, 3);
+    gmm::row_matrix<std::vector<double>> _transformationMatrix(3, 3);
     // build inverse of basis vector out of edges
     _basisInv(0, 0) = edges[1][1] * edges[2][2] - edges[1][2] * edges[2][1];
     _basisInv(1, 0) = edges[1][2] * edges[2][0] - edges[1][0] * edges[2][2];
@@ -339,23 +338,23 @@ GlobalParametrization::createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_
                               edges[0][1] * edges[1][0] * edges[2][2] + edges[0][1] * edges[1][2] * edges[2][0] +
                               edges[0][2] * edges[1][0] * edges[2][1] - edges[0][2] * edges[1][1] * edges[2][0]);
     gmm::scale(_basisInv, denominator);
-    gmm::mult(_basisInv, _C, _D);
-//    std::cout << "D(" << fh.idx() << "): " << _D;
-    basisTransformationMtx[fh] = _D;
+    gmm::mult(_basisInv, _abc, _transformationMatrix);
+//    std::cout << "D(" << fh.idx() << "): " << _transformationMatrix;
+    basisTransformationMtx[fh] = _transformationMatrix;
 }
 
 gmm::col_matrix<std::vector<double>> GlobalParametrization::createCMatrix() {
-    gmm::col_matrix<std::vector<double>> _C(3, 3);
-    _C(0, 0) = -1;
-    _C(1, 0) = -1;
-    _C(2, 0) = 0;
-    _C(0, 1) = 1;
-    _C(1, 1) = 0;
-    _C(2, 1) = 0;
-    _C(0, 2) = 0;
-    _C(1, 2) = 1;
-    _C(2, 2) = 0;
-    return _C;
+    gmm::col_matrix<std::vector<double>> _abc(3, 3);
+    _abc(0, 0) = -1;
+    _abc(1, 0) = -1;
+    _abc(2, 0) = 0;
+    _abc(0, 1) = 1;
+    _abc(1, 1) = 0;
+    _abc(2, 1) = 0;
+    _abc(0, 2) = 0;
+    _abc(1, 2) = 1;
+    _abc(2, 2) = 0;
+    return _abc;
 }
 
 std::vector<double>
@@ -376,9 +375,9 @@ GlobalParametrization::getRhs(const std::vector<int> &faces, const int rhsSizePa
         getRhsEntryForVertex(fh, vCrossField, false, _rhs);
     }
     //set entries smaller than 1E-10 to zero
-    for (std::size_t i = 0; i < _rhs.size(); ++i) {
-        if (_rhs[i] < 1E-10 && _rhs[i] > -1E-10) {
-            _rhs[i] = 0.0;
+    for (auto i: _rhs) {
+        if (i < 1E-10 && i > -1E-10) {
+            i = 0;
         }
     }
     return _rhs;
@@ -424,7 +423,7 @@ int
 GlobalParametrization::mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh) {
     auto localVUi = OpenMesh::FProp<std::vector<int>>(trimesh_, "localVUi");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
-    double column;
+    int column;
 //    std::vector<int> vertices = localVUi[fh];
     if (vh.idx() == localVUi[fh][0]) {
         column = 0;
@@ -442,7 +441,7 @@ GlobalParametrization::getHessian(const int rhsSizePartOne, const int rhsSizePar
     trimesh_.request_halfedge_status();
     trimesh_.request_face_status();
     int size = rhsSizePartOne + rhsSizePartTwo;
-    CMatrixType _H(size, size);
+    CMatrixType _hessian(size, size);
     for (auto he: trimesh_.halfedges()) {
         trimesh_.status(he).set_tagged(false);
         if (he.face().is_valid()) {
@@ -452,19 +451,19 @@ GlobalParametrization::getHessian(const int rhsSizePartOne, const int rhsSizePar
     for (auto he: trimesh_.halfedges()) {
         if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
             if (!he.face().tagged()) {
-                getDiaEntriesHessian(he.face(), _H);
+                getDiaEntriesHessian(he.face(), _hessian);
             }
             if (!he.tagged()) {
-                getEntriesHessian(he, _H);
+                getEntriesHessian(he, _hessian);
             }
         }
     }
     trimesh_.release_halfedge_status();
     trimesh_.release_face_status();
-    return _H;
+    return _hessian;
 }
 
-void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H) {
+void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_hessian) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
@@ -473,27 +472,27 @@ void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::FaceHandle fh, 
     double weight = 1, area = trimesh_.calc_face_area(fh), h = 1;
     for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
         int occurrence = vertexAppearanceCG[*fv_it];
-        gmm::row_matrix<std::vector<double>> D = basisTransformationMtx[fh];
+        gmm::row_matrix<std::vector<double>> transformationMatrix = basisTransformationMtx[fh];
         double sum = 0, col = mapLocCoordToGlobCoordSys(fh, *fv_it);
 //        std::cout << "face: " << fh.idx() << "\nvertex: " << fv_it->idx() << "\ncol: " << col << "\nsum: ";
         for (int j = 0; j < 3; ++j) {
-            sum += D(j, col) * D(j, col);
+            sum += transformationMatrix(j, col) * transformationMatrix(j, col);
             //            std::cout << sum << "\t";
         }
 //        std::cout << std::endl;
         for (int i = 0; i < occurrence; ++i) {
-            _H(vertexPosUi[*fv_it] + i, vertexPosUi[*fv_it] + i) += 2 * weight * area * pow(h, 2) * sum;
-            _H(vertexPosVi[*fv_it] + i, vertexPosVi[*fv_it] + i) += 2 * weight * area * pow(h, 2) * sum;
+            _hessian(vertexPosUi[*fv_it] + i, vertexPosUi[*fv_it] + i) += 2 * weight * area * pow(h, 2) * sum;
+            _hessian(vertexPosVi[*fv_it] + i, vertexPosVi[*fv_it] + i) += 2 * weight * area * pow(h, 2) * sum;
 //            std::cout << "hessian U val (" << vertexPosUi[*fv_it] + i << "," << vertexPosUi[*fv_it] + i << ") "
-//                      << _H(vertexPosUi[*fv_it] + i, vertexPosUi[*fv_it] + i) << " and V val " <<
-//                      _H(vertexPosVi[*fv_it] + i, vertexPosVi[*fv_it] + i) << std::endl;
+//                      << _hessian(vertexPosUi[*fv_it] + i, vertexPosUi[*fv_it] + i) << " and V val " <<
+//                      _hessian(vertexPosVi[*fv_it] + i, vertexPosVi[*fv_it] + i) << std::endl;
         }
         trimesh_.status(fh).set_tagged(true);
     }
 
 }
 
-void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_H) {
+void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian) {
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
@@ -519,13 +518,13 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandl
     }
 //            std::cout << "\n";
     // u position
-    _H(vertexPosUi[vh_i], vertexPosUi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
-    _H(vertexPosUi[vh_j], vertexPosUi[vh_i]) += 2 * weight * area * pow(h, 2) * sum;
+    _hessian(vertexPosUi[vh_i], vertexPosUi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+    _hessian(vertexPosUi[vh_j], vertexPosUi[vh_i]) += 2 * weight * area * pow(h, 2) * sum;
     // v position
-    _H(vertexPosVi[vh_i], vertexPosVi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
-    _H(vertexPosVi[vh_j], vertexPosVi[vh_i]) += 2 * weight * area * pow(h, 2) * sum;
+    _hessian(vertexPosVi[vh_i], vertexPosVi[vh_j]) += 2 * weight * area * pow(h, 2) * sum;
+    _hessian(vertexPosVi[vh_j], vertexPosVi[vh_i]) += 2 * weight * area * pow(h, 2) * sum;
 //            std::cout << "hessian U val (" << vertexPosUi[vh_i] << "," << vertexPosUi[vh_j] << ") "
-//                      << _H(vertexPosUi[vh_i], vertexPosUi[vh_j]) << std::endl;
+//                      << _hessian(vertexPosUi[vh_i], vertexPosUi[vh_j]) << std::endl;
 }
 
 void GlobalParametrization::createSectorsCutGraph(std::vector<int> &singularities) {
@@ -640,8 +639,7 @@ bool GlobalParametrization::checkIfLeaf(const OpenMesh::VertexHandle &heToVertex
     }
 }
 
-void GlobalParametrization::fixRotationsCrossBoundaryComp(std::vector<int> &complementHEdges,
-                                                          std::vector<int> &singularities, std::vector<int> &faces) {
+void GlobalParametrization::fixRotationsCrossBoundaryComp(std::vector<int> &faces) {
     auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     trimesh_.request_face_status();
     trimesh_.request_halfedge_status();
@@ -690,7 +688,6 @@ GlobalParametrization::getPJ(TriMesh::FaceHalfedgeIter &fhe_it, OpenMesh::SmartH
 }
 
 void GlobalParametrization::updatePJandCrossfield(std::pair<int, int> &pj, OpenMesh::SmartHalfedgeHandle &ohe) {
-    ;
     auto currentPJ = OpenMesh::FProp<int>(trimesh_, "currentPJ");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
@@ -851,6 +848,8 @@ GlobalParametrization::setConRows(int &counter, int &jkStartCounter, const int d
             _constraints(counter, vertexPosVi[vh] + posOne) = 1;
             _constraints(counter++, jkStartCounter + 1) = -1;
             break;
+        default:
+            break;
     }
 }
 
@@ -936,16 +935,15 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
 }
 
 void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces,
-                                           std::vector<int> &singularities, std::vector<int> &cutGraphWoBoundary,
-                                           int nbVerticesUaV, int jkValues) {
+                                           std::vector<int> &cutGraphWoBoundary, int jkValues) {
     trimesh_.request_vertex_status();
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     //init status
     initPropForSolVector();
 
     // this is how i get j,k values. check getConstraintMatrix function in order to deduce ordering
-    for (auto it = cutGraphWoBoundary.begin(); it != cutGraphWoBoundary.end(); ++it) {
-        auto he = make_smart(trimesh_.halfedge_handle(*it), trimesh_);
+    for (auto i: cutGraphWoBoundary) {
+        auto he = make_smart(trimesh_.halfedge_handle(i), trimesh_);
         getSolFromVerticesWMoreOneApp(he, _x, jkValues);
     }
 
