@@ -45,8 +45,18 @@ public:
     ~Get2DTexture() {
     }
 
+    /**
+     * initialize property to zero.\n
+     * @param hp_texture property
+     */
     void initProperty(OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture);
 
+    /**
+     * get vertex position in u,v system.
+     * @param fh_it halfedge handle
+     * @param u u parameter of u,v system
+     * @param v v parameter of u,v system
+     */
     void get2DTexture(TriMesh::FaceHalfedgeIter &fh_it, double &u, double &v);
 
 
@@ -54,6 +64,14 @@ private:
 
     TriMesh &trimesh_;
 
+    /**
+     * get column position in constraint matrix.\n
+     * is used when a vertex has multiple occurrences.\n
+     * returns int which indicates which position in vector should be accessed
+     * @param vh vertex handle
+     * @param cutGraphZone face property
+     * @return int
+     */
     int getPositionConstraintRow(OpenMesh::SmartVertexHandle &vh, int cutGraphZone);
 
 };

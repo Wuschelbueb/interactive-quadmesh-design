@@ -86,12 +86,24 @@ public :
 
 public slots:
 
+    /**
+     * get first selection with the help of dijkstra algorithm.\n
+     */
     void slot_get_boundary();
 
+    /**
+     * get crossfield for each triangle.\n
+     */
     void slot_get_dualGraph();
 
+    /**
+     * create global parametrization for selection.\n
+     */
     void slot_get_global_param();
 
+    /**
+     * put a quad mesh texture over tri-mesh.\n
+     */
     void slot_get_2d_texture();
 
 private:

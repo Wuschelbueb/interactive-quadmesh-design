@@ -155,7 +155,7 @@ private:
      * @param heKappa map of halfedges with their assigned kappa
      * @return kappa
      */
-    double extractKappa( OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa);
+    double extractKappa(OpenMesh::HalfedgeHandle fh_it, const std::map<int, double> &heKappa);
 
     /**
      * adds kappa of halfedge to the according position of rhs.\n
@@ -255,16 +255,47 @@ private:
      */
     double getKappa(const int refEdgeMain, const int refEdgeNeigh, const std::pair<int, int> commonEdge);
 
+    /**
+     * initialize point (uVectorFieldRot1,2,3,4) properties with {0,0,0}
+     */
     void setVecFieldProp();
 
+    /**
+     * calculates the constraint angle with atan2 and sets x-Axis of local Vectorfield.
+     * @param faces vector containing faces of selection
+     */
     void getConstraintAngleAndVecField(const std::vector<int> &faces);
 
+    /**
+     * gets crossfield Index for each vertex. used to find singularities.
+     * has helper functions
+     * @param faces vector containing faces of selection
+     * @param heKappa map of halfedges with their assigned kappa
+     * @param _x solution vector from solver
+     */
     void getCrossFieldIdx(const std::vector<int> &faces, const std::map<int, double> &heKappa,
                           const std::vector<double> &_x);
 
+    /**
+     * calculates crossfield index.
+     * @param fv_it vertex handle
+     * @param faceSize position periodjump start in _x
+     * @param heKappa map of halfedges with their assigned kappa
+     * @param _x solution vector from solver
+     */
     void setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize, const std::map<int, double> &heKappa,
                           const std::vector<double> &_x);
 
+    /**
+     * gets components which are needed to calculate crossfield index
+     * @param fv_it vertex handle
+     * @param sumKappa sums up all the kappas adjacent to a vertex
+     * @param angleDefect gets the angle defect of a vertex
+     * @param sumPJ sums up all the pj ajdacent to a vertex
+     * @param faceSize position periodjump start in _x
+     * @param heKappa map of halfedges with their assigned kappa
+     * @param _x solution vector from solver
+     */
     void getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
                      const int faceSize, const std::map<int, double> &heKappa,
                      const std::vector<double> &_x);
@@ -277,24 +308,72 @@ private:
      */
     void setRotThetaOfVectorField(const std::vector<int> &faces, const std::vector<double> _x);
 
+    /**
+     * color faces depending if they are in selection or not
+     * @param faces vector containing faces in selection
+     */
     void colorFaces(const std::vector<int> &faces);
 
+    /**
+     * color halfedges depending if they are in selection, constraints or none of these two
+     */
     void colorHEdges();
 
+    /**
+     * get the vector containing faces from selection. additionally set the reference He for each triangle in selection.\n
+     * reference halfedge is a property stored in a face.
+     * @return vector containing faces of selection
+     */
     std::vector<int> getFacesVecWithRefHeProp();
 
+    /**
+     * add faces from halfedges to faces vector and use these halfedges as reference halfedge.\n
+     * check if halfedge is boundary, if yes break.
+     * @param i halfedge index
+     * @param faces vector containing faces of selection
+     */
     void setRefHeToFace(const int i, std::vector<int> &faces);
 
+    /**
+     * basically like modulo, but with 2*pi.\n
+     * return angle is always between (-pi, pi]
+     * @param kappa angle
+     * @return shorted angle
+     */
     double shortenKappa(const double kappa);
 
+    /**
+     * rotate vec with Rodrigues rotation formula.\n
+     * is used when a vector needs to be rotated a certain angle in space, given an axis and angle of rotation.\n
+     * @param fh face handle
+     * @param vec Vec3d
+     * @param theta angle
+     * @return Vec3d
+     */
     Point rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta = 1.0);
 
-    std::vector<int> getFaceConstraints();
+    /**
+     * get one constrained per face even if there are multiple constrained halfedges.\n
+     * @return vector with constrained halfedges
+     */
+    std::vector<int> getConstrainedHe();
 
+    /**
+     * set periodjump property for each halfedge. extract periodjump from solution, _x vector.\n
+     * @param heKappa map of halfedges with their assigned kappa
+     * @param _x vector from solver containing solution
+     * @param faceSize position where periodjump start
+     */
     void setPJProp(std::map<int, double> &heKappa, std::vector<double> &_x, const int faceSize);
 
     TriMesh &trimesh_;
+    /**
+     * halfedges which were included of dijkstra calc.
+     */
     std::vector<int> &heInRange_;
+    /**
+     * halfedges which were selected by selection tool.
+     */
     std::vector<int> &heConstraints_;
 
 

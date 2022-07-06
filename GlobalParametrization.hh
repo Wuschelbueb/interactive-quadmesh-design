@@ -23,10 +23,12 @@
 #include <cmath>
 #include "DijkstraDistance.hh"
 
+/**
+ * compute global parametrization. prepare mesh for mapping on a disk-shaped param domain.\n
+ */
 class GlobalParametrization {
 public:
     using Point = OpenMesh::Vec3d;
-    /// Handy typedefs sparse gmm vector matrix types
     typedef gmm::col_matrix<gmm::wsvector<double>> CMatrixType;
     typedef gmm::row_matrix<gmm::wsvector<double>> RMatrixType;
     typedef gmm::wsvector<double> CVectorType;
@@ -46,12 +48,24 @@ public:
     ~GlobalParametrization() {
     }
 
+    /**
+     * get global parametrization computed.\n
+     */
     void getGlobalParam();
 
 private:
 
+    /**
+     * get faces part of the selection.\n
+     * @return vector with indices of faces
+     */
     std::vector<int> getFaceVec();
 
+    /**
+     * create for each face a local coordsystem. where each of the vertices have a point.
+     * @param faces
+     * @return
+     */
     int createVertexPosParamDomain(std::vector<int> &faces);
 
     void checkCGandSetPos(OpenMesh::VertexHandle fv_it, int &countVertices);
@@ -62,12 +76,12 @@ private:
 
     void createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh, std::vector<Point> &edges);
 
-    void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_C,
+    void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_abc,
                           const std::vector<Point> &edges);
 
     std::vector<int> getSingularities();
 
-    gmm::col_matrix<std::vector<double>> createCMatrix();
+    static gmm::col_matrix<std::vector<double>> createCMatrix();
 
     std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
 
@@ -94,9 +108,9 @@ private:
 
     int mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh);
 
-    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_H);
+    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_hessian);
 
-    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_H);
+    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian);
 
     void colorCompHEdges(const std::vector<int> &complementEdges);
 
@@ -127,8 +141,7 @@ private:
 
     bool checkIfLeaf(const OpenMesh::VertexHandle &heToVertex);
 
-    void fixRotationsCrossBoundaryComp(std::vector<int> &complementHEdges, std::vector<int> &singularities,
-                                       std::vector<int> &faces);
+    void fixRotationsCrossBoundaryComp(std::vector<int> &faces);
 
     Point rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec, const double theta);
 
@@ -146,10 +159,10 @@ private:
     TriMesh &trimesh_;
 
     void
-    saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces, std::vector<int> &singularities, std::vector<int>& cutGraphWoBoundary,int nbVerticesUaV,
+    saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces, std::vector<int> &cutGraphWoBoundary,
                    int jkValues);
 
-    void getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> & _x, int &jkValues);
+    void getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, int &jkValues);
 
     void initPropForSolVector();
 
