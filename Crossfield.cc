@@ -143,6 +143,7 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std:
     return _constraints;
 }
 
+//todo check if this needs to be changed. i.e. check that unique faces get added instead of unique halfedges
 std::vector<int> Crossfield::getConstrainedHe() {
     std::vector<int> faceConst, heConst;
     for (int i: heConstraints_) {
