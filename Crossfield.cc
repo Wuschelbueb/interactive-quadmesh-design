@@ -143,17 +143,21 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std:
     return _constraints;
 }
 
-//todo check if this needs to be changed. i.e. check that unique faces get added instead of unique halfedges
 std::vector<int> Crossfield::getConstrainedHe() {
+    trimesh_.request_face_status();
     std::vector<int> faceConst, heConst;
+    for (auto fh: trimesh_.faces()) {
+        trimesh_.status(fh).set_tagged(false);
+    }
     for (int i: heConstraints_) {
         auto heh = make_smart(trimesh_.halfedge_handle(i), trimesh_);
-        if (heh.face().is_valid() &&
-            (std::find(faceConst.begin(), faceConst.end(), heh.face().idx()) == faceConst.end())) {
-            faceConst.push_back(heh.face().idx());
+        //(std::find(faceConst.begin(), faceConst.end(), heh.face().idx()) == faceConst.end())
+        if (heh.face().is_valid() && !heh.face().tagged()) {
+            trimesh_.status(heh.face()).set_tagged(true);
             heConst.push_back(heh.idx());
         }
     }
+    trimesh_.release_face_status();
     return heConst;
 }
 
@@ -254,7 +258,6 @@ Crossfield::extractKappa(OpenMesh::HalfedgeHandle fh_it, const std::map<int, dou
     double sum = 0;
     OpenMesh::HalfedgeHandle opposite_heh = trimesh_.opposite_halfedge_handle(fh_it);
     if (!trimesh_.is_boundary(opposite_heh)) {
-        OpenMesh::FaceHandle opposite_fh = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(fh_it));
         auto it = heKappa.find(fh_it.idx());
         auto it2 = heKappa.find(opposite_heh.idx());
         if (it != heKappa.end()) {
@@ -280,7 +283,6 @@ void
 Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, double> &heKappa, const int facesPlusOne) {
     int counter = facesPlusOne;
     for (const auto &i: heKappa) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
         _rhs[counter++] = (i.second * M_PI);
     }
 }
@@ -594,10 +596,6 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
 //                    double sector_angle = std::acos(trimesh_.calc_edge_vector(*vohe_it).normalize()
 //                                                    | -trimesh_.calc_edge_vector(vohe_it->prev()).normalize());
 //                    idx += sector_angle;
-//                    // add connection angle, boundary case handled inside
-//                    const auto eh = trimesh_.edge_handle(*vohe_it);
-//                    const auto ehh = vohe_it->edge();
-//
 //
 //                    // at boundaries the connection is zero per definition
 //                    double angle = 0., pj = 0., kappa;
@@ -618,11 +616,11 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
 //                        }
 //                        int pos1 = positionHessianMatrix[vohe_it->face()];
 //                        int pos2 = positionHessianMatrix[vohe_it->opp().face()];
-//                        double theta1 = shortenKappa(_x[pos1]);
-//                        double theta2 = shortenKappa(_x[pos2]);
+//                        double theta1 = _x[pos1];
+//                        double theta2 = _x[pos2];
 //                        pj < 0 ? pj - 0.5 : pj + 0.5;
-//
-//                        angle = theta2 - (theta1 + std::pow(-1, pj) * pj * 0.5 * M_PI + kappa);
+//                        //probably wrong
+//                        angle = theta1 - theta2 + pj * 0.5 * M_PI + kappa;
 //                    }
 //                    idx += angle;
 //                }

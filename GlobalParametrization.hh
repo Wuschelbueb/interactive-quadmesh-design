@@ -150,7 +150,7 @@ private:
      * @param rhsSizePartTwo nb of jk Values; based on the number of halfedges in cutgraph.
      * @return returns hessian sparse column matrix.
      */
-    CMatrixType getHessian(const int rhsSizePartOne, const int rhsSizePartTwo);
+    CMatrixType getHessian(const int rhsSizePartOne, const int rhsSizePartTwo, std::vector<int> &cutGraphWoBoundary);
 
     /**
      * responsible to fill up diagonal of hessian matrix.\n
@@ -168,11 +168,12 @@ private:
      * @param he halfedge
      * @param _hessian essian sparse column matrix.\n
      */
-    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian);
+    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian,
+                           std::vector<int> &cutGraphWoBoundary, const int jkStart);
 
     /**
      * creates empty constraint row matrix matrix.\n
-     * calls helper functions getRowSizeAndStatus, setZeroPoint and getConstraintsMatrix to fill matrix up.\n
+     * calls helper functions getRowSizeAndSetStatus, setZeroPointConstraint and getConstraintsMatrix to fill matrix up.\n
      * @param nbVerticesUaV first half of column size.
      * @param cutGraphWoBoundary second half of column size.
      * @param singularities vector with vertices
@@ -187,7 +188,7 @@ private:
      * helper function of getConstraints.\n
      * @return number of vertices.
      */
-    int getRowSizeAndStatus();
+    int getRowSizeAndSetStatus();
 
     /**
      * set a unique point, preferably a singularity which is the origin {0,0} of the global param system.\n
@@ -195,7 +196,7 @@ private:
      * @param singularities vector of vertices
      * @param _constraints row matrix
      */
-    void setZeroPoint(std::vector<int> &singularities, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
+    void setZeroPointConstraint(std::vector<int> &singularities, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     /**
      * iterate through cutGraphWoBoundary to fill up rows of constraint matrix.\n
@@ -333,6 +334,30 @@ private:
      * @param singularities vector of vertices
      */
     void propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities);
+
+
+    /**
+     * return list which contains Outgoing halfedges of vertex.\n
+     * This vertex is from the halfedge which originates from singularity.\n
+     * @param toVhOfNewOutgoHe vertex handle
+     */
+    std::vector<OpenMesh::HalfedgeHandle> getListOfOutgoHe(OpenMesh::SmartVertexHandle toVhOfNewOutgoHe);
+
+    /**
+     * get the next outgoing halfedge, i.e. take next element in list after heOpp.\n
+     * @param newOutgoHe halfedge handle
+     * @param newOutgoHeOpp halfedge handle
+     * @param vecOfOutgoHe vector of halfedges
+     */
+    void getNextHe(OpenMesh::SmartHalfedgeHandle &newOutgoHe, OpenMesh::SmartHalfedgeHandle &newOutgoHeOpp,
+                   std::vector<OpenMesh::HalfedgeHandle> &vecOfOutgoHe);
+
+    /**
+     * color faces which are adjacent to the currently selected halfedge handle.\n
+     * @param newOutgoHe halfedge handle
+     * @param sector color/value of current sector
+     */
+    void colorFaces(OpenMesh::SmartHalfedgeHandle newOutgoHe, int sector);
 
     /**
      * checks if vertex is singularity on cutgraph.\n
