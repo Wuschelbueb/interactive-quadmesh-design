@@ -104,6 +104,7 @@ void MastersThesisPlugin::slot_get_2d_texture() {
             for (TriMesh::FaceIter f_it = trimesh->faces_begin(); f_it != trimesh->faces_end(); ++f_it) {
                 for (TriMesh::FaceHalfedgeIter fh_it = trimesh->fh_iter(*f_it); fh_it.is_valid(); ++fh_it) {
                     double u, v;
+//                    std::cout << "new iteration with he: " << fh_it->idx() << "\n";
                     mesh.get2DTexture(fh_it, u, v);
 //                    std::cout << "halfedge " << fh_it->idx() << "\tu " << u << "\tv " << v << std::endl;
                     trimesh->property(hp_texture, *fh_it) = {u, v};

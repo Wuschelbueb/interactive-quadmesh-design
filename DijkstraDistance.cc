@@ -48,7 +48,7 @@ void DijkstraDistance::initProperties(std::vector<int> &cutGraphVertices, const 
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
-    int max = INT_MAX, zeroDist = 0.0, standardAppearance = 0;
+    int max = INT_MAX, zeroDist = 0.0, standardAppearance = 1;
     for (auto vh: trimesh_.vertices()) {
         vertexDist[vh] = max;
         trimesh_.status(vh).set_tagged(false);

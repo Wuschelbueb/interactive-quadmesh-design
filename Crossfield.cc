@@ -9,6 +9,10 @@ void Crossfield::getCrossfield() {
     setVecFieldProp();
     getConstraintAngleAndVecField(faces);
     std::map<int, double> heKappa = getMapHeKappa(faces);
+
+    // indexes the faces from 0 to n
+    // this is needed in case a face index is higher than the matrix size
+    setPositionInHessianForFaces(heKappa);
     CMatrixType _H = getHessianMatrix(faces, heKappa);
     RMatrixType _constraints = getConstraintMatrix(heKappa, faces);
     std::vector<double> _x(heKappa.size() + faces.size(), 0.0);
@@ -290,17 +294,8 @@ Crossfield::getRhsSecondHalf(std::vector<double> &_rhs, const std::map<int, doub
 Crossfield::CMatrixType
 Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
-    // request to change the status
-    trimesh_.request_halfedge_status();
-    trimesh_.request_face_status();
-    for (auto fh: trimesh_.faces()) {
-        trimesh_.status(fh).set_tagged(false);
-    }
     int counter = 0, iteration = 0, pj_start = faces.size(), n = heKappa.size() + faces.size();
     gmm::col_matrix<gmm::wsvector<double>> _H(n, n);
-    // indexes the faces from 0 to n
-    // this is needed in case a face index is higher than the matrix size
-    setPositionInHessianForFaces(heKappa);
 
     // fills up sparse column matrix _H
     for (auto i: heKappa) {
@@ -329,8 +324,6 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
         iteration++;
     }
     gmm::clean(_H, 1E-10);
-    trimesh_.release_halfedge_status();
-    trimesh_.release_face_status();
     return _H;
 }
 
@@ -345,6 +338,10 @@ int Crossfield::getFactor(const OpenMesh::FaceHandle fh, const std::vector<int> 
 
 void Crossfield::setPositionInHessianForFaces(const std::map<int, double> &heKappa) {
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
+    trimesh_.request_face_status();
+    for (auto fh: trimesh_.faces()) {
+        trimesh_.status(fh).set_tagged(false);
+    }
     int counter = 0;
     for (const auto &i: heKappa) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
@@ -363,6 +360,7 @@ void Crossfield::setPositionInHessianForFaces(const std::map<int, double> &heKap
             counter++;
         }
     }
+    trimesh_.release_face_status();
 }
 
 std::map<int, double> Crossfield::getMapHeKappa(const std::vector<int> &faces) {
