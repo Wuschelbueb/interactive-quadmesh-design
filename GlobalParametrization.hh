@@ -220,7 +220,7 @@ private:
      * @param _constraints row matrix
      */
     void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartHalfedgeHandle &he,
-                    gmm::row_matrix<gmm::wsvector<double>> &_constraints);
+                    OpenMesh::SmartVertexHandle &vh, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     /**
      * gets position of uv value, i.e. which column of the row the values need to be assigned.\n
@@ -458,6 +458,8 @@ private:
      * @param _x solution vector
      */
     void getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x);
+
+    int getSum(const int appearance);
 };
 
 
