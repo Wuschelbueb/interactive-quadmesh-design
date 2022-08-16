@@ -456,25 +456,11 @@ GlobalParametrization::getHessian(const int rhsSizePartOne, const int rhsSizePar
     CMatrixType _hessian(size, size);
     //initialize halfedges and faces
     for (auto he: trimesh_.halfedges()) {
-        trimesh_.status(he).set_tagged(false);
-        trimesh_.status(he).set_tagged2(false);
-        if (he.face().is_valid()) {
-            trimesh_.status(he.face()).set_tagged(false);
-        }
-    }
-    for (auto he: trimesh_.halfedges()) {
         if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
-            if (!he.tagged2()) {
-                getDiaEntriesHessian(he, _hessian);
-            }
-            if (!he.tagged()) {
-                getEntriesHessian(he, _hessian);
-            }
+            getDiaEntriesHessian(he, _hessian);
+            getEntriesHessian(he, _hessian);
         }
     }
-//    for (int i = rhsSizePartOne; i < size; i++) {
-//        _hessian(i, i) = 1;
-//    }
     trimesh_.release_halfedge_status();
     trimesh_.release_face_status();
     return _hessian;
@@ -504,7 +490,6 @@ void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::SmartHalfedgeHa
     }
     _hessian(vertexPosUi[vh] + posOne, vertexPosUi[vh] + posOne) += 2 * weight * area * pow(h, 2) * sum;
     _hessian(vertexPosVi[vh] + posOne, vertexPosVi[vh] + posOne) += 2 * weight * area * pow(h, 2) * sum;
-    trimesh_.status(he).set_tagged2(true);
 }
 
 void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian) {
@@ -550,7 +535,6 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandl
     // v position
     _hessian(vertexPosVi[vh_i] + posOne, vertexPosVi[vh_j] + posTwo) += 2 * weight * area * pow(h, 2) * sum;
     _hessian(vertexPosVi[vh_j] + posTwo, vertexPosVi[vh_i] + posOne) += 2 * weight * area * pow(h, 2) * sum;
-    trimesh_.status(he).set_tagged(true);
 //    std::cout << "hessian U val (" << vertexPosUi[vh_i] + posOne << "," << vertexPosUi[vh_j] + posTwo << ") "
 //              << _hessian(vertexPosUi[vh_i] + posOne, vertexPosUi[vh_j] + posTwo) << std::endl;
 }
@@ -807,15 +791,6 @@ int GlobalParametrization::getRowSizeAndSetStatus() {
     return row_size;
 }
 
-int GlobalParametrization::getSum(const int appearance) {
-    int sum = 0;
-    for (int i = 1; i < appearance; ++i) {
-        sum += i;
-    }
-    std::cout << "appearance " << appearance << " and sum is " << sum << std::endl;
-    return sum * 2;
-}
-
 void GlobalParametrization::setZeroPointConstraint(std::vector<int> &singularities,
                                                    gmm::row_matrix<gmm::wsvector<double>> &_constraints) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
@@ -824,7 +799,7 @@ void GlobalParametrization::setZeroPointConstraint(std::vector<int> &singulariti
     for (auto i: singularities) {
         auto vh = trimesh_.vertex_handle(i);
         if (checkIfLeaf(vh)) {
-            std::cout << "origin singularity: " << vh.idx() << std::endl;
+//            std::cout << "origin singularity: " << vh.idx() << std::endl;
             _constraints(0, vertexPosUi[vh]) = 1;
             _constraints(1, vertexPosVi[vh]) = 1;
             break;
@@ -832,7 +807,7 @@ void GlobalParametrization::setZeroPointConstraint(std::vector<int> &singulariti
     }
     if (singularities.empty()) {
         for (auto vh: trimesh_.vertices()) {
-            std::cout << "origin non-singularity: " << vh.idx() << std::endl;
+//            std::cout << "origin non-singularity: " << vh.idx() << std::endl;
             _constraints(0, vertexPosUi[vh]) = 1;
             _constraints(1, vertexPosVi[vh]) = 1;
             break;
@@ -854,9 +829,9 @@ GlobalParametrization::getConstraintsMatrix(int &jkStartCounter, std::vector<int
     for (auto it = cutGraphWoBoundary.begin(); it != cutGraphWoBoundary.end(); it++) {
         auto he1 = make_smart(trimesh_.halfedge_handle(*it++), trimesh_);
         auto he2 = make_smart(trimesh_.halfedge_handle(*it), trimesh_);
-        std::cout << "halfedge " << he1.idx() << " (" << he1.tagged() << ") with vertex " << he1.to().idx() << " ("
-                  << he1.to().tagged() << ")\nhalfedge " << he2.idx() << " (" << he2.tagged() << ") with vertex "
-                  << he2.to().idx() << " (" << he2.to().tagged() << ")\n";
+//        std::cout << "halfedge " << he1.idx() << " (" << he1.tagged() << ") with vertex " << he1.to().idx() << " ("
+//                  << he1.to().tagged() << ")\nhalfedge " << he2.idx() << " (" << he2.tagged() << ") with vertex "
+//                  << he2.to().idx() << " (" << he2.to().tagged() << ")\n";
         try {
             if (he1.opp().idx() != he2.idx()) {
                 throw 404;
@@ -866,14 +841,14 @@ GlobalParametrization::getConstraintsMatrix(int &jkStartCounter, std::vector<int
         }
         int diff = (currentPJ[he1.face()] + currentPJ[he2.face()]) % 4;
         if (!he1.tagged() && !he1.to().tagged()) {
-            std::cout << "enter he1 condition\n";
+//            std::cout << "enter he1 condition\n";
             auto vh1 = he1.to();
             setConRows(counter, jkStartCounter, diff, he1, vh1, _constraints);
             trimesh_.status(he1).set_tagged(true);
         }
         if (!he2.tagged() && !he2.to().tagged()) {
 //            auto vh2 = he2.to();
-            std::cout << "enter he2 condition\n";
+//            std::cout << "enter he2 condition\n";
             auto vh2 = he1.from();
             setConRows(counter, jkStartCounter, diff, he1, vh2, _constraints);
             trimesh_.status(he2).set_tagged(true);
