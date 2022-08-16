@@ -141,8 +141,8 @@ private:
      * @param _rhs vector. add entries
      */
     void getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle he, const Point CrossFieldAxis,
-                                                const bool flagUorV,
-                                                std::vector<double> &_rhs);
+                              const bool flagUorV,
+                              std::vector<double> &_rhs);
 
     /**
      * get Hessian matrix.\n
@@ -458,6 +458,8 @@ private:
      * @param _x solution vector
      */
     void getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x);
+
+    void getSolFromVerticesWOneApp(OpenMesh::SmartHalfedgeHandle eh, std::vector<double> &_x);
 
     int getSum(const int appearance);
 };

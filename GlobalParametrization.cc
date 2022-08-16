@@ -66,27 +66,6 @@ void GlobalParametrization::getGlobalParam() {
     csolver.misolver().set_multiple_rounding();
     csolver.solve(_constraints, _hessian, _x, _rhs, _idx_to_round);
     saveSolAsCoord(_x, faces, cutGraphWoBoundary, nbVerticesUaV);
-    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
-//    for (auto it = _x.begin(); it != _x.end(); ++it) {
-//        xVector << "Pos U: " << *it++ << " Pos V: " << *it << std::endl;
-//    }
-
-    xVector << "x = [";
-    for (auto it = _x.begin(); it != _x.end(); ++it) {
-        size_t i = std::distance(_x.begin(), it);
-        if (i % 2 == 0) {
-            xVector << *it << ",";
-        }
-    }
-    xVector << "]\ny = [";
-    for (auto it = _x.begin(); it != _x.end(); ++it) {
-        size_t i = std::distance(_x.begin(), it);
-        if (i % 2 == 1) {
-            xVector << *it << ",";
-        }
-    }
-    xVector << "]";
-    xVector.close();
 }
 
 std::vector<int> GlobalParametrization::getSingularities() {
@@ -405,7 +384,7 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle 
     OpenMesh::SmartVertexHandle vh = he.to();
     int posAppearance = 0, appearance = vertexAppearanceCG[vh];
     gmm::row_matrix<std::vector<double>> transformationMatrix = basisTransformationMtx[adjFace];
-    double area = trimesh_.calc_face_area(adjFace), col = mapLocCoordToGlobCoordSys(adjFace, vh);
+    double area = trimesh_.calc_face_area(adjFace), col = mapLocCoordToGlobCoordSys(adjFace, vh), h = 1;
 
     if (appearance > 1) {
         posAppearance = getPositionConstraintRow(vh, cutGraphFZone[adjFace]);
@@ -418,7 +397,7 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle 
     //check if U or V position is needed
     int UVPos = (flagUorV) ? vertexPosUi[vh] : vertexPosVi[vh];
 //        std::cout << "position of vertex " << fv_it->idx() << " is " << UVPos + posAppearance << std::endl;
-    _rhs[UVPos + posAppearance] += 2 * area * sum;
+    _rhs[UVPos + posAppearance] += 2 * area * h * sum;
 }
 
 //map U coordinates to vertices
@@ -454,6 +433,9 @@ GlobalParametrization::getHessian(const int rhsSizePartOne, const int rhsSizePar
             getEntriesHessian(he, _hessian);
         }
     }
+//    for (int i = rhsSizePartOne; i < rhsSizePartOne + rhsSizePartTwo; ++i) {
+//        _hessian(i, i) = 1;
+//    }
     trimesh_.release_halfedge_status();
     trimesh_.release_face_status();
     return _hessian;
@@ -955,6 +937,7 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
     for (auto vh: trimesh_.vertices()) {
         trimesh_.status(vh).set_tagged(false);
     }
+    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     std::vector<int> _idx_to_round;
@@ -965,11 +948,13 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
             _idx_to_round.push_back(vertexPosUi[he.to()]);
             _idx_to_round.push_back(vertexPosVi[he.to()]);
             trimesh_.status(he.to()).set_tagged(true);
+            std::cout << "idx to round, boundary " << he.to().idx() << std::endl;
         }
         if (!he.from().tagged()) {
             _idx_to_round.push_back(vertexPosUi[he.from()]);
             _idx_to_round.push_back(vertexPosVi[he.from()]);
             trimesh_.status(he.from()).set_tagged(true);
+            std::cout << "idx to round, boundary " << he.to().idx() << std::endl;
         }
 
     }
@@ -979,13 +964,19 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
     for (auto i: singularities) {
         auto vh = make_smart(trimesh_.vertex_handle(i), trimesh_);
         if (!vh.tagged()) {
-            _idx_to_round.push_back(vertexPosUi[vh]);
-            _idx_to_round.push_back(vertexPosVi[vh]);
+            for (int j = 0; j < vertexAppearanceCG[vh]; ++j) {
+                _idx_to_round.push_back(vertexPosUi[vh] + j);
+                _idx_to_round.push_back(vertexPosVi[vh] + j);
+            }
+            std::cout << "idx to round, singularity " << i << std::endl;
+//            _idx_to_round.push_back(vertexPosUi[vh]);
+//            _idx_to_round.push_back(vertexPosVi[vh]);
             trimesh_.status(vh).set_tagged(true);
         }
     }
     //jk values are integers as well
     for (int i = nbVerticesUaV; i < nbVerticesUaV + jkValues; ++i) {
+        std::cout << "idx to round, jk Values " << i << std::endl;
         _idx_to_round.push_back(i);
     }
     trimesh_.release_vertex_status();
@@ -994,60 +985,52 @@ std::vector<int> GlobalParametrization::getIdxToRound(int nbVerticesUaV, int jkV
 
 void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces,
                                            std::vector<int> &cutGraphWoBoundary, const int nbVerticesUaV) {
-    trimesh_.request_vertex_status();
     int jkStartValue = nbVerticesUaV;
-    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
-    //init status
-    initPropForSolVector();
-
-    // this is how i get j,k values. check getConstraintMatrix function in order to deduce ordering
-    for (auto i: cutGraphWoBoundary) {
-        auto he = make_smart(trimesh_.halfedge_handle(i), trimesh_);
-        getSolFromVerticesWMoreOneApp(he, _x, jkStartValue);
-    }
-
-    // then we can run through the faces and ignore the tagged vertices
-    for (auto f: faces) {
-        auto fh = trimesh_.face_handle(f);
-        getSolFromVerticesWOneApp(fh, _x);
-    }
-    //print solution
-    for (auto vh: trimesh_.vertices()) {
-        trimesh_.status(vh).set_tagged(false);
-    }
-//    std::ofstream solutionVector("/home/wuschelbueb/Desktop/solutionVector.txt");
-//    for (auto f: faces) {
-//        auto fh = trimesh_.face_handle(f);
-//        for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-//            if (!fv_it->tagged()) {
-//                auto he1 = make_smart(trimesh_.halfedge_handle(*fv_it), trimesh_);
-//                auto vh = he1.to();
-//                solutionVector << "vertex: " << vh.idx() << std::endl;
-//                for (size_t i = 0; i < solCoordSysUV[vh].size(); ++i) {
-//                    solutionVector << "Position " << i << " with point " << solCoordSysUV[vh][i] << std::endl;
-//                }
-//                trimesh_.status(*fv_it).set_tagged(true);
-//            }
-//
-//        }
-//    }
-//    solutionVector.close();
-    trimesh_.release_vertex_status();
-}
-
-void GlobalParametrization::initPropForSolVector() {
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
-    for (auto vh: trimesh_.vertices()) {
-        trimesh_.status(vh).set_tagged(false);
-        // needed to handle cutGraphWoBoundary
-        trimesh_.status(vh).set_tagged2(true);
-        if (vertexAppearanceCG[vh] > 1) {
-            trimesh_.status(vh).set_tagged2(false);
-            trimesh_.status(vh).set_tagged(true);
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
+
+    for (auto he: trimesh_.halfedges()) {
+        if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
+            if (vertexAppearanceCG[he.to()] < 2) {
+                solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
+                getSolFromVerticesWOneApp(he, _x);
+            } else {
+                solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
+            }
         }
-        solCoordSysUV[vh];
     }
+    for (auto it = cutGraphWoBoundary.begin(); it != cutGraphWoBoundary.end(); it++) {
+        auto he1 = make_smart(trimesh_.halfedge_handle(*it++), trimesh_);
+        auto he2 = make_smart(trimesh_.halfedge_handle(*it), trimesh_);
+//        std::cout << "halfedge " << he1.idx() << " (" << he1.tagged() << ") with vertex " << he1.to().idx() << " ("
+//                  << he1.to().tagged() << ")\nhalfedge " << he2.idx() << " (" << he2.tagged() << ") with vertex "
+//                  << he2.to().idx() << " (" << he2.to().tagged() << ")\n";
+        try {
+            if (he1.opp().idx() != he2.idx()) {
+                throw 404;
+            }
+        } catch (int x) {
+            std::cerr << "getConstraintMatrix: halfedges have to be opposite, something went wrong\n";
+        }
+        getSolFromVerticesWMoreOneApp(he1, _x, jkStartValue);
+        getSolFromVerticesWMoreOneApp(he2, _x, jkStartValue);
+        jkStartValue += 2;
+    }
+
+    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorGlobalParam.txt");
+    for (auto vh: trimesh_.vertices()) {
+        xVector << "vertex (" << solCoordSysUV[vh].size() << ") " << vh.idx() << " with coord:\n";
+        for (size_t i = 0; i < solCoordSysUV[vh].size(); ++i) {
+            xVector << "x[" << i << "]: " << solCoordSysUV[vh][i][0] << "\ny[" << i << "]: " << solCoordSysUV[vh][i][1]
+                    << std::endl;
+        }
+    }
+    xVector << "\n";
+    for (auto it = _x.begin(); it != _x.end(); ++it) {
+        xVector << *it << std::endl;
+    }
+    xVector.close();
 }
 
 void GlobalParametrization::getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x,
@@ -1055,37 +1038,32 @@ void GlobalParametrization::getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedg
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
+    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
-    if (!he.to().tagged2()) {
+    if (vertexAppearanceCG[he.to()] > 1) {
         auto vh = he.to();
         int posOne = getPositionConstraintRow(vh, cutGraphFZone[he.face()]);
         int posU = vertexPosUi[vh] + posOne;
         int posV = vertexPosVi[vh] + posOne;
-        double u = _x[posU] + _x[jkStartValues++];
-        double v = _x[posV] + _x[jkStartValues++];
+        //todo not add jkvalues
+        double u = _x[posU] + _x[jkStartValues];
+        double v = _x[posV] + _x[jkStartValues + 1];
 //        std::cout << "vertex " << vh.idx() << "\twith PosU " << posU - posOne << "\twith posOne: " << posOne
 //                  << "\nwith jk: " << _x[jkStartValues - 2] << "\tand: " << _x[jkStartValues - 1] << std::endl;
-        OpenMesh::Vec2d p = {u, v};
-        solCoordSysUV[vh].push_back(p);
+        solCoordSysUV[vh][posOne] = {u, v};
     }
 }
 
-void GlobalParametrization::getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x) {
+void GlobalParametrization::getSolFromVerticesWOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
     auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
-    for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-        if (!fv_it->tagged()) {
-            int posU = vertexPosUi[*fv_it];
-            int posV = vertexPosVi[*fv_it];
-            double u = _x[posU];
-            double v = _x[posV];
-            OpenMesh::Vec2d p = {u, v};
-//            std::cout << "vertex " << fv_it->idx() << "\twith posU: " << posU << std::endl;
-            solCoordSysUV[*fv_it].push_back(p);
-            trimesh_.status(*fv_it).set_tagged(true);
-        }
-    }
+    int posU = vertexPosUi[he.to()];
+    int posV = vertexPosVi[he.to()];
+    double u = _x[posU];
+    double v = _x[posV];
+    OpenMesh::Vec2d p = {u, v};
+    solCoordSysUV[he.to()][0] = p;
 }
 
 
