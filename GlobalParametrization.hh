@@ -156,10 +156,10 @@ private:
      * responsible to fill up diagonal of hessian matrix.\n
      * dotproduct of basisTransformationMatrix[i] and basisTransformationMatrix[i] times some other minor components.\n
      * calls helper function mapLocCoordToGlobCoordSys.\n
-     * @param fh face handle
+     * @param he halfedge handle
      * @param _hessian hessian sparse column matrix.\n
      */
-    void getDiaEntriesHessian(const OpenMesh::FaceHandle fh, CMatrixType &_hessian);
+    void getDiaEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian);
 
     /**
      * fills the rest of the hessian matrix up.\n
@@ -168,8 +168,7 @@ private:
      * @param he halfedge
      * @param _hessian essian sparse column matrix.\n
      */
-    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian,
-                           std::vector<int> &cutGraphWoBoundary, const int jkStart);
+    void getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian);
 
     /**
      * creates empty constraint row matrix matrix.\n
