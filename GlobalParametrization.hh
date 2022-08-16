@@ -129,19 +129,20 @@ private:
      * @param rhsSizePartTwo nb of jk Values; based on the number of halfedges in cutgraph.
      * @return vector with rhs values.
      */
-    std::vector<double> getRhs(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo);
+    std::vector<double> getRhs(const int rhsSizePartOne, const int rhsSizePartTwo);
 
     /**
      * get entry for each vertex.\n
      * dotproduct of crossfieldAxis and basisTransformationMatrix times some other minor components.\n
      * calls mapLocCoordToGlobCoordSys to map local vertices to global param.\n
-     * @param fh face handle
+     * @param he halfedge handle
      * @param CrossFieldAxis is Point of U or V Axis of local coord system
      * @param flagUorV flag differs between U or V
      * @param _rhs vector. add entries
      */
-    void getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis, const bool flagUorV,
-                              std::vector<double> &_rhs);
+    void getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle he, const Point CrossFieldAxis,
+                                                const bool flagUorV,
+                                                std::vector<double> &_rhs);
 
     /**
      * get Hessian matrix.\n

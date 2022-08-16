@@ -30,7 +30,7 @@ void GlobalParametrization::getGlobalParam() {
     std::cout << "nbVerticesUaV: " << nbVerticesUaV << " and jkValues: " << jkValues << std::endl;
 
     std::vector<double> _x(nbVerticesUaV + jkValues, 0.0);
-    std::vector<double> _rhs = getRhs(faces, nbVerticesUaV, jkValues);
+    std::vector<double> _rhs = getRhs(nbVerticesUaV, jkValues);
     std::vector<int> _idx_to_round = getIdxToRound(nbVerticesUaV, jkValues, singularities, onlyBoundaries);
     CMatrixType _hessian = getHessian(nbVerticesUaV, jkValues, cutGraphWoBoundary);
     RMatrixType _constraints = getConstraints(nbVerticesUaV, cutGraphWoBoundary, singularities);
@@ -365,7 +365,8 @@ gmm::col_matrix<std::vector<double>> GlobalParametrization::createSomeMatrix() {
 }
 
 std::vector<double>
-GlobalParametrization::getRhs(const std::vector<int> &faces, const int rhsSizePartOne, const int rhsSizePartTwo) {
+GlobalParametrization::getRhs(const int rhsSizePartOne, const int rhsSizePartTwo) {
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
     int size = rhsSizePartOne + rhsSizePartTwo;
@@ -373,24 +374,25 @@ GlobalParametrization::getRhs(const std::vector<int> &faces, const int rhsSizePa
 
     // use nbVerticesUaV and lhs formulas with dkm -> dkm is entry in D matrix
     // utk is entry of vectorRotOne
-    for (int i: faces) {
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        Point uCrossField = uVectorFieldRotOne[fh];
-        Point vCrossField = uVectorFieldRotTwo[fh];
-        getRhsEntryForVertex(fh, uCrossField, true, _rhs);
-        getRhsEntryForVertex(fh, vCrossField, false, _rhs);
+    for (auto he: trimesh_.halfedges()) {
+        if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
+            Point uCrossField = uVectorFieldRotOne[he.face()];
+            Point vCrossField = uVectorFieldRotTwo[he.face()];
+            getRhsEntryForVertex(he, uCrossField, true, _rhs);
+            getRhsEntryForVertex(he, vCrossField, false, _rhs);
+        }
     }
     //set entries smaller than 1E-10 to zero
-    for (auto i: _rhs) {
-        if (i < 1E-10 && i > -1E-10) {
-            i = 0;
+    for (size_t i = 0; i < _rhs.size(); ++i) {
+        if (_rhs[i] < 1E-10 && _rhs[i] > -1E-10) {
+            _rhs[i] = 0;
         }
     }
     return _rhs;
 }
 
 void
-GlobalParametrization::getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const Point CrossFieldAxis,
+GlobalParametrization::getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle he, const Point CrossFieldAxis,
                                             const bool flagUorV,
                                             std::vector<double> &_rhs) {
     auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
@@ -399,33 +401,24 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::FaceHandle fh, const
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto basisTransformationMtx = OpenMesh::FProp<gmm::row_matrix<std::vector<double>>>(trimesh_,
                                                                                         "basisTransformationMtx");
-    double weight = 1, area = trimesh_.calc_face_area(fh), h = 1, col;
-    int posOne = 0;
-//    std::cout << "face " << fh.idx() << " area: " << area << std::endl;
-    for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-        OpenMesh::SmartVertexHandle vh;
-        int appearance = vertexAppearanceCG[*fv_it];
-        if (appearance > 1) {
-            vh = *fv_it;
-            posOne = getPositionConstraintRow(vh, cutGraphFZone[fh]);
-        }
-        //map U coordinates to vertices
-        col = mapLocCoordToGlobCoordSys(fh, *fv_it);
-//        std::cout << "rhs calc, vertex: " << fv_it->idx() << " and face: (" << fh.idx() << ") with col: " << col
-//                  << " and app: " << appearance << std::endl;
-        //get sum of ut*dkm
-        double sum = 0;
-        for (int j = 0; j < 3; ++j) {
-//            std::cout << "sum += " << CrossFieldAxis[j] << " * " << _D(j, col) << "\t" << CrossFieldAxis[j] * _D(j, col)
-//                      << std::endl;
-            sum += CrossFieldAxis[j] * basisTransformationMtx[fh](j, col);
-        }
-        //check if U or V position is needed
-        int pos = (flagUorV) ? vertexPosUi[*fv_it] : vertexPosVi[*fv_it];
-//        std::cout << "position of vertex " << fv_it->idx() << " is " << pos + posOne << std::endl;
-        double totSum = 2 * weight * area * h * sum;
-        _rhs[pos + posOne] += totSum;
+    OpenMesh::FaceHandle adjFace = he.face();
+    OpenMesh::SmartVertexHandle vh = he.to();
+    int posAppearance = 0, appearance = vertexAppearanceCG[vh];
+    gmm::row_matrix<std::vector<double>> transformationMatrix = basisTransformationMtx[adjFace];
+    double area = trimesh_.calc_face_area(adjFace), col = mapLocCoordToGlobCoordSys(adjFace, vh);
+
+    if (appearance > 1) {
+        posAppearance = getPositionConstraintRow(vh, cutGraphFZone[adjFace]);
     }
+    //get sum of ut*dkm
+    double sum = 0;
+    for (int j = 0; j < 3; ++j) {
+        sum += CrossFieldAxis[j] * basisTransformationMtx[adjFace](j, col);
+    }
+    //check if U or V position is needed
+    int UVPos = (flagUorV) ? vertexPosUi[vh] : vertexPosVi[vh];
+//        std::cout << "position of vertex " << fv_it->idx() << " is " << UVPos + posAppearance << std::endl;
+    _rhs[UVPos + posAppearance] += 2 * area * sum;
 }
 
 //map U coordinates to vertices
