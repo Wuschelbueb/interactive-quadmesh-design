@@ -428,15 +428,14 @@ private:
 
     /**
      * extract params from solution to assign vertices with coordinates of disk topology.\n
-     * calls initPropForSolVector, getSolFromVerticesWMoreOneApp and getSolFromVerticesWOneApp.\n
+     * calls initPropForSolVector, getSolFromVerticesWMoreOneApp and saveSolToVertices.\n
      * @param _x solution vector
      * @param faces vector of faces in selection
      * @param cutGraphWoBoundary vector of halfedges
      * @param nbVerticesUaV start of jkValues
      */
     void
-    saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces, std::vector<int> &cutGraphWoBoundary,
-                   const int nbVerticesUaV);
+    saveSolAsCoord(std::vector<double> &_x);
 
     /**
      * set up status for use in getSolFromVerticesWMoreOneApp and getSolFromVerticesWOneApp.\n
@@ -444,24 +443,11 @@ private:
     void initPropForSolVector();
 
     /**
-     * gets Coordinate for vertex with more than one apperance on disk topology.\n
-     * calls getPositionConstraintRow to get position of vertex.\n
-     * @param he halfedge handle
-     * @param _x solution vector
-     * @param jkStartValues at which position j and k values start
-     */
-    void getSolFromVerticesWMoreOneApp(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, int &jkStartValues);
-
-    /**
      * gets Coordinate for vertex with one apperance on disk topology.\n
-     * @param fh face handle
+     * @param fh halfedge handle
      * @param _x solution vector
      */
-    void getSolFromVerticesWOneApp(OpenMesh::FaceHandle fh, std::vector<double> &_x);
-
-    void getSolFromVerticesWOneApp(OpenMesh::SmartHalfedgeHandle eh, std::vector<double> &_x);
-
-    int getSum(const int appearance);
+    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, std::ofstream &rest);
 };
 
 
