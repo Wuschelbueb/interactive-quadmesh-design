@@ -56,6 +56,7 @@ public:
 private:
 
     TriMesh &trimesh_;
+    double h = 0.01;
 
     /**
      * get faces part of the selection.\n
