@@ -56,7 +56,7 @@ public:
 private:
 
     TriMesh &trimesh_;
-    double h = 0.3;
+    double h = 0.09;
 
     /**
      * get faces part of the selection.\n
@@ -449,7 +449,7 @@ private:
      * @param fh halfedge handle
      * @param _x solution vector
      */
-    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, std::ofstream &rest);
+    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x);
 };
 
 
