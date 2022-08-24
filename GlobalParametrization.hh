@@ -56,7 +56,7 @@ public:
 private:
 
     TriMesh &trimesh_;
-    double h = 0.01;
+    double h = 0.3;
 
     /**
      * get faces part of the selection.\n
@@ -221,7 +221,8 @@ private:
      * @param _constraints row matrix
      */
     void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartHalfedgeHandle &he,
-                    OpenMesh::SmartVertexHandle &vh, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
+                    OpenMesh::SmartVertexHandle &vh, gmm::row_matrix<gmm::wsvector<double>> &_constraints,
+                    std::ofstream &abcd);
 
     /**
      * gets position of uv value, i.e. which column of the row the values need to be assigned.\n

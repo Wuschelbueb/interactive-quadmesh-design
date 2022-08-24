@@ -730,5 +730,6 @@ void Crossfield::setPJProp(std::map<int, double> &heKappa, std::vector<double> &
     for (auto it = heKappa.begin(); it != heKappa.end(); ++it) {
         auto he = trimesh_.halfedge_handle(it->first);
         periodJump[he] = _x[position++];
+
     }
 }
