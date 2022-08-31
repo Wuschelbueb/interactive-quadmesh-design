@@ -35,9 +35,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QDoubleSpinBox" name="hValue">
+         <property name="prefix">
+          <string>h = </string>
+         </property>
+         <property name="minimum">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.020000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="include_boundary_faces">
          <property name="text">
-          <string>include boundary Faces</string>
+          <string>incl. Bound. Faces</string>
          </property>
         </widget>
        </item>

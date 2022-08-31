@@ -67,13 +67,14 @@ void MastersThesisPlugin::slot_get_dualGraph() {
 }
 
 void MastersThesisPlugin::slot_get_global_param() {
+    double hValue = tool_->hValue->value();
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
         // create mesh
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
         if (trimesh) {
-            GlobalParametrization mesh{*trimesh};
+            GlobalParametrization mesh{*trimesh, hValue};
             mesh.getGlobalParam();
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
             emit updatedObject(o_it->id(), UPDATE_ALL);
