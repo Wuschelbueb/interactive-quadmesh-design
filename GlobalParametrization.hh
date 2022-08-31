@@ -41,8 +41,8 @@ public:
      *      heInRange_ = heInRange;
      * }
      */
-    GlobalParametrization(TriMesh &trimesh)
-            : trimesh_{trimesh} {
+    GlobalParametrization(TriMesh &trimesh, double &hValue)
+            : trimesh_{trimesh}, hVal{hValue} {
     }
 
     ~GlobalParametrization() {
@@ -56,7 +56,7 @@ public:
 private:
 
     TriMesh &trimesh_;
-    double h = 0.09;
+    double &hVal;
 
     /**
      * get faces part of the selection.\n
@@ -181,7 +181,7 @@ private:
      * @return constraints row matrix.
      */
     gmm::row_matrix<gmm::wsvector<double>>
-    getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
+    getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary, std::vector<int> &onlyBoundaries,
                    std::vector<int> &singularities);
 
     /**
@@ -449,7 +449,13 @@ private:
      * @param fh halfedge handle
      * @param _x solution vector
      */
-    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x);
+    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, std::ofstream &rest);
+
+    void colorCompBoundaries(std::vector<int> &onlyBoundaries);
+
+    void
+    setFeatureLineConstraint(gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::vector<int> &onlyBoundaries,
+                             const int startingPoint);
 };
 
 
