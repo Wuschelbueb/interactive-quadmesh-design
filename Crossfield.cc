@@ -596,7 +596,7 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
 //                    idx += sector_angle;
 //
 //                    // at boundaries the connection is zero per definition
-//                    double angle = 0., pj = 0., kappa;
+//                    double angle = 0, pj = 0, kappa;
 //                    if (!trimesh_.is_boundary(vohe_it->edge())) {
 //                        int position = 0;
 //                        auto it = heKappa.find(vohe_it->idx());
@@ -616,14 +616,13 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
 //                        int pos2 = positionHessianMatrix[vohe_it->opp().face()];
 //                        double theta1 = _x[pos1];
 //                        double theta2 = _x[pos2];
-//                        pj < 0 ? pj - 0.5 : pj + 0.5;
-//                        //probably wrong
+////                        pj < 0 ? pj - 0.5 : pj + 0.5;
 //                        angle = theta1 - theta2 + pj * 0.5 * M_PI + kappa;
 //                    }
 //                    idx += angle;
 //                }
 //                idx = (0.5 - idx / (2.0 * M_PI));
-//                idx < 0 ? idx - 0.5 : idx + 0.5;
+////                idx < 0 ? idx - 0.5 : idx + 0.5;
 //                crossFieldIdx[*v_it] = idx;
 //                trimesh_.status(*v_it).set_tagged(true);
             }
@@ -657,24 +656,19 @@ Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize,
     trimesh_.status(*fv_it).set_tagged(true);
 }
 
-//todo error could be here
 void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
                              const int faceSize, const std::map<int, double> &heKappa,
                              const std::vector<double> &_x) {
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
     for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
-        int position = 0;
         auto it = heKappa.find(vohe_it->idx());
         auto it2 = heKappa.find(vohe_it->opp().idx());
         angleDefect += trimesh_.calc_sector_angle(vohe_it->prev());
         if (it != heKappa.end()) {
-            //return position of it in heKappa
-            position = std::distance(std::begin(heKappa), it);
             //with position and faceSize we can extract p_ij value of _x vector (solution)
             sumPJ += periodJump[*vohe_it];
             sumKappa += it->second;
         } else if (it2 != heKappa.end()) {
-            position = std::distance(std::begin(heKappa), it2);
             sumPJ -= periodJump[vohe_it->opp()];
             sumKappa -= it2->second;
         }
