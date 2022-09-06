@@ -311,57 +311,6 @@ private:
     void createSectorsOnCutGraph(std::vector<int> &singularities);
 
     /**
-     * add halfedges to startOfSectors if outgoing halfedges of singularity are part of cutgraph.\n
-     * helper function of createSectorsOnCutGraph.\n
-     * @param i singularity
-     * @param startOfSectors vector of Halfedges
-     */
-    void initVectorStartSec(const int i, std::vector<OpenMesh::HalfedgeHandle> &startOfSectors);
-
-    /**
-     * iterates through halfedges in startOfSectors vector.\n
-     * calls propagation and is helper function of createSectorsOnCutGraph.\n
-     * @param sector number of sector
-     * @param startOfSectors vector of halfedges
-     * @param singularities singularities
-     */
-    void propagateForSectors(int &sector, const std::vector<OpenMesh::HalfedgeHandle> &startOfSectors,
-                             std::vector<int> &singularities);
-
-    /**
-     * propagates along halfedges on cutgraph until next leaf singularity is found.\n
-     * when found, increase sector number to start a new sector.\n
-     * @param heh outgoing halfedge of singularity
-     * @param sector number of sector
-     * @param singularities vector of vertices
-     */
-    void propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities);
-
-
-    /**
-     * return list which contains Outgoing halfedges of vertex.\n
-     * This vertex is from the halfedge which originates from singularity.\n
-     * @param toVhOfNewOutgoHe vertex handle
-     */
-    std::vector<OpenMesh::HalfedgeHandle> getListOfOutgoHe(OpenMesh::SmartVertexHandle toVhOfNewOutgoHe);
-
-    /**
-     * get the next outgoing halfedge, i.e. take next element in list after heOpp.\n
-     * @param newOutgoHe halfedge handle
-     * @param newOutgoHeOpp halfedge handle
-     * @param vecOfOutgoHe vector of halfedges
-     */
-    void getNextHe(OpenMesh::SmartHalfedgeHandle &newOutgoHe, OpenMesh::SmartHalfedgeHandle &newOutgoHeOpp,
-                   std::vector<OpenMesh::HalfedgeHandle> &vecOfOutgoHe);
-
-    /**
-     * color faces which are adjacent to the currently selected halfedge handle.\n
-     * @param newOutgoHe halfedge handle
-     * @param sector color/value of current sector
-     */
-    void colorFaces(OpenMesh::SmartHalfedgeHandle newOutgoHe, int sector);
-
-    /**
      * checks if vertex is singularity on cutgraph.\n
      * @param heToVertex vertex handle
      * @return true if leaf else false
@@ -456,6 +405,8 @@ private:
     void
     setFeatureLineConstraint(gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::vector<int> &onlyBoundaries,
                              const int startingPoint);
+
+    void propagation(int &singularity, OpenMesh::SmartHalfedgeHandle he);
 };
 
 

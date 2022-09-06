@@ -19,11 +19,11 @@ void GlobalParametrization::getGlobalParam() {
     std::vector<int> cutGraphWoBoundary;
 //    add path from boundary to singularity to cut graph
     dualGraph.calcDijkstraWSingularities(complementHEdges, singularities, cutGraphWoBoundary);
-    createSectorsOnCutGraph(singularities);
-    fixRotationsCrossBoundaryComp(faces);
 //    to visualize cutGraph with or without edges
     colorCompBoundaries(onlyBoundaries);
     colorCompHEdges(complementHEdges);
+    createSectorsOnCutGraph(singularities);
+    fixRotationsCrossBoundaryComp(faces);
     int nbVerticesUaV = createVertexPosParamDomain(faces);
     int jkValues = cutGraphWoBoundary.size();
     std::cout << "nbVerticesUaV: " << nbVerticesUaV << " and jkValues: " << jkValues << std::endl;
@@ -60,16 +60,15 @@ void GlobalParametrization::getGlobalParam() {
               << std::endl
               << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
               << "Size of idx:\t\t" << _idx_to_round.size() << std::endl;
-    //todo can singularity occur twice? check code if this is allowed!
-//    COMISO::ConstrainedSolver csolver;
-//    csolver.misolver().set_iter_full(false);
-//    csolver.misolver().set_local_iters(50000);
-//    csolver.misolver().set_cg_iters(20);
-//    csolver.misolver().set_local_error(1e-3);
-//    csolver.misolver().set_cg_error(1e-3);
-//    csolver.misolver().set_multiple_rounding();
-//    csolver.solve(_constraints, _hessian, _x, _rhs, _idx_to_round);
-//    saveSolAsCoord(_x);
+    COMISO::ConstrainedSolver csolver;
+    csolver.misolver().set_iter_full(false);
+    csolver.misolver().set_local_iters(50000);
+    csolver.misolver().set_cg_iters(20);
+    csolver.misolver().set_local_error(1e-3);
+    csolver.misolver().set_cg_error(1e-3);
+    csolver.misolver().set_multiple_rounding();
+    csolver.solve(_constraints, _hessian, _x, _rhs, _idx_to_round);
+    saveSolAsCoord(_x);
 }
 
 std::vector<int> GlobalParametrization::getSingularities() {
@@ -534,153 +533,69 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandl
 }
 
 void GlobalParametrization::createSectorsOnCutGraph(std::vector<int> &singularities) {
-    trimesh_.request_halfedge_status();
-    int sector = 1;
+    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    bool singTest = false;
+    OpenMesh::SmartHalfedgeHandle ohe;
     for (int singularity: singularities) {
         auto vh = trimesh_.vertex_handle(singularity);
         if (checkIfLeaf(vh)) {
-            std::vector<OpenMesh::HalfedgeHandle> startOfSectors;
-            initVectorStartSec(singularity, startOfSectors);
-            propagateForSectors(sector, startOfSectors, singularities);
+            for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
+                if (cutGraphHe[*voh_it] && cutGraphHe[voh_it->opp()]) {
+                    singTest = true;
+                    ohe = *voh_it;
+                    break;
+                }
+            }
+            if (singTest) {
+                std::cout << "startVertex " << vh.idx() << std::endl;
+                propagation(singularity, ohe);
+                break;
+            }
         }
     }
-    trimesh_.release_halfedge_status();
 }
 
-void GlobalParametrization::initVectorStartSec(const int singularity,
-                                               std::vector<OpenMesh::HalfedgeHandle> &startOfSectors) {
+void GlobalParametrization::propagation(int &singularity, OpenMesh::SmartHalfedgeHandle he) {
     auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
+    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
     auto vh = trimesh_.vertex_handle(singularity);
-    //initialize values with first cycle
-    for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
-        if (cutGraphHe[*voh_it] && cutGraphHe[voh_it->opp()]) {
-            startOfSectors.push_back(*voh_it);
-        }
-    }
-}
-
-void GlobalParametrization::propagateForSectors(int &sector,
-                                                const std::vector<OpenMesh::HalfedgeHandle> &startOfSectors,
-                                                std::vector<int> &singularities) {
-    for (auto heh: startOfSectors) {
-        propagation(heh, sector, singularities);
-    }
-}
-
-void
-GlobalParametrization::propagation(OpenMesh::HalfedgeHandle &heh, int &sector, const std::vector<int> &singularities) {
-    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
-    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
-    auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
-    OpenMesh::SmartHalfedgeHandle newOutgoHe = make_smart(heh, trimesh_);
-    OpenMesh::SmartHalfedgeHandle newOutgoHeOpp = newOutgoHe.opp();
-    auto toVhOfNewOutgoHe = newOutgoHe.to();
-    bool next_sing_found = false;
-    cutGraphFZone[newOutgoHe.face()] = sector;
-    while (!next_sing_found) {
-        std::vector<OpenMesh::HalfedgeHandle> vecOfOutgoHe = getListOfOutgoHe(toVhOfNewOutgoHe);
-        auto temp = newOutgoHe;
-        //updates newOutgoHe value
-        getNextHe(newOutgoHe, newOutgoHeOpp, vecOfOutgoHe);
-
-        // special case; is necessary to avoid wrong coloring of cutgraphs which are only 1 edge long
-        // probably happens only if vertex app > 1 is on boundary
-        if (newOutgoHe == newOutgoHeOpp) {
-            cutGraphFZone[newOutgoHe.face()] = ++sector;
-            int tempSectorColor = cutGraphFZone[temp.face()];
-            for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(temp.face()); ff_it.is_valid(); ++ff_it) {
-                if (cutGraphFZone[*ff_it] == 0) {
-                    cutGraphFZone[*ff_it] = tempSectorColor;
-                }
+    int color = 1;
+    cutGraphFZone[he.face()] = color;
+    OpenMesh::SmartHalfedgeHandle prevCutHe = he, currentCutHe = he, firstHe = he;
+    bool done = false, specialCase = false;
+    while (!(done && specialCase)) {
+        he = he.next();
+        cutGraphFZone[he.face()] = color;
+        if (cutGraphHe[he]) {
+            prevCutHe = currentCutHe;
+            currentCutHe = he;
+            if (prevCutHe.opp() == currentCutHe) {
+                color++;
             }
-            tempSectorColor = cutGraphFZone[newOutgoHe.face()];
-            for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(newOutgoHe.face()); ff_it.is_valid(); ++ff_it) {
-                if (cutGraphFZone[*ff_it] == 0) {
-                    cutGraphFZone[*ff_it] = tempSectorColor;
-                }
-            }
-            break;
+            std::cout << "he is " << he.idx() << " part of Cut\n"
+                      << "prevCut " << prevCutHe << "\ncurrentCut "
+                      << currentCutHe << std::endl;
+        } else if (!he.opp().is_boundary()) {
+            he = he.opp();
+            std::cout << "he is " << he.idx() << " bound" << std::endl;
         }
-        //set toVhOfNewOutgoHe = element.to()
-        toVhOfNewOutgoHe = newOutgoHe.to();
-        //make it outgoing for the next cycle
-        newOutgoHeOpp = newOutgoHe.opp();
-
-        colorFaces(newOutgoHe, sector);
-        //check if toVhOfNewOutgoHe is singularity
-        bool leafCheck = checkIfLeaf(toVhOfNewOutgoHe);
-        if (leafCheck &&
-            (std::find(singularities.begin(), singularities.end(), toVhOfNewOutgoHe.idx()) != singularities.end())) {
-            std::cout << "singularity\n";
-            next_sing_found = true;
-        } else if (leafCheck) {
-            std::cout << "leaf check" << std::endl;
-            newOutgoHe = newOutgoHeOpp;
-            newOutgoHeOpp = newOutgoHe.opp();
-            toVhOfNewOutgoHe = newOutgoHe.to();
-            colorFaces(newOutgoHe, ++sector);
+        std::cout << "new he is " << he.idx() << std::endl;
+        if (firstHe == he) {
+            cutGraphFZone[he.face()] = 1;
+            cutGraphFZone[he.prev().opp().face()] = 1;
+            std::cout << "reached end\n";
+            done = true;
         }
-    }
-    sector++;
-}
-
-std::vector<OpenMesh::HalfedgeHandle>
-GlobalParametrization::getListOfOutgoHe(OpenMesh::SmartVertexHandle toVhOfNewOutgoHe) {
-
-    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
-    std::vector<OpenMesh::HalfedgeHandle> vecOfOutgoHe;
-    //fill vector with halfedges who are in cutgraph
-    for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(toVhOfNewOutgoHe); voh_it.is_valid(); ++voh_it) {
-        if (cutGraphHe[*voh_it]) {
-            vecOfOutgoHe.push_back(*voh_it);
+        if (done && color == 2 && cutGraphHe[prevCutHe.opp()] && !cutGraphHe[currentCutHe.opp()]) {
+            cutGraphFZone[he.next().opp().face()] = color;
+            specialCase = true;
         }
-    }
-    return vecOfOutgoHe;
-}
-
-void GlobalParametrization::getNextHe(OpenMesh::SmartHalfedgeHandle &newOutgoHe,
-                                      OpenMesh::SmartHalfedgeHandle &newOutgoHeOpp,
-                                      std::vector<OpenMesh::HalfedgeHandle> &vecOfOutgoHe) {
-    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
-    int idx = -1;
-//get pos of newOutgoHeOpp in vecOfOutgoHe.
-    if (cutGraphHe[newOutgoHeOpp]) {
-        auto it = find(vecOfOutgoHe.begin(), vecOfOutgoHe.end(), newOutgoHeOpp);
-        if (it != vecOfOutgoHe.end()) {
-            idx = it - vecOfOutgoHe.begin();
-        }
-        //get next element in vecOfOutgoHe
-        if (idx == ((int) vecOfOutgoHe.size() - 1)) {
-            //set newOutgoHeOpp = element
-            newOutgoHe = make_smart(vecOfOutgoHe[0], trimesh_);
-        } else {
-            newOutgoHe = make_smart(vecOfOutgoHe[idx + 1], trimesh_);
-        }
-    } else {
-        for (auto he: vecOfOutgoHe) {
-            auto temp = make_smart(he, trimesh_);
-            if (!cutGraphHe[temp.opp()]) {
-                newOutgoHe = temp;
-            }
+        if (done && color > 2) {
+            specialCase = true;
         }
     }
 }
 
-void GlobalParametrization::colorFaces(OpenMesh::SmartHalfedgeHandle newOutgoHe, int sector) {
-    auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
-    auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
-    auto faceOppOfHeAfterToVertex = newOutgoHe.next().opp().face();
-    auto faceOppOfHeBeforeToVertex = newOutgoHe.prev().opp().face();
-    bool leafCheck = checkIfLeaf(newOutgoHe.to());
-    //set cutGraphFZone = sector
-    cutGraphFZone[newOutgoHe.face()] = sector;
-    if (!cutGraphHe[newOutgoHe.next()] && faceOppOfHeAfterToVertex.is_valid() && !leafCheck) {
-        cutGraphFZone[faceOppOfHeAfterToVertex] = sector;
-    }
-    if (!cutGraphHe[newOutgoHe.prev()] && faceOppOfHeBeforeToVertex.is_valid()) {
-        cutGraphFZone[faceOppOfHeBeforeToVertex] = sector;
-    }
-}
 
 bool GlobalParametrization::checkIfLeaf(const OpenMesh::VertexHandle &heToVertex) {
     auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");
@@ -820,14 +735,14 @@ GlobalParametrization::getConstraintsMatrix(int &jkStartCounter, std::vector<int
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
     int counter = 2; // because singularity constraint is at pos 0&1
     std::ofstream abcd("/home/wuschelbueb/data/Desktop/abcd.txt");
-//    abcd.close();
+    abcd.close();
 
     //jkstartcounter == nbOfVerticesUaV
     for (auto it = cutGraphWoBoundary.begin(); it != cutGraphWoBoundary.end(); it++) {
         auto he1 = make_smart(trimesh_.halfedge_handle(*it++), trimesh_);
         auto he2 = make_smart(trimesh_.halfedge_handle(*it), trimesh_);
-        abcd << "halfedge " << he1.idx() << " with vertex " << he1.to().idx() << "\nhalfedge " << he2.idx()
-             << " with vertex " << he2.to().idx() << "\n";
+//        abcd << "halfedge " << he1.idx() << " with vertex " << he1.to().idx() << "\nhalfedge " << he2.idx()
+//             << " with vertex " << he2.to().idx() << "\n";
         try {
             if (he1.opp().idx() != he2.idx()) {
                 throw 404;
@@ -855,7 +770,7 @@ GlobalParametrization::getConstraintsMatrix(int &jkStartCounter, std::vector<int
         setConRows(counter, jkStartCounter, diff, he1, vh2, _constraints, abcd);
         jkStartCounter += 2;
     }
-    abcd.close();
+//    abcd.close();
 }
 
 void
@@ -931,16 +846,16 @@ GlobalParametrization::setConRows(int &counter, int &jkStartCounter, const int d
         default:
             break;
     }
-    std::string leaf = (leafcheck) ? " leaf" : " nonLeaf";
-    abcd << "\tvertex " << vh.idx() << leaf << " origin from he " << he.idx() << " (adj. Face "
-         << he.face().idx() << ")\n\t\tposition U / V: " << vertexPosUi[vh] + posOne << "_(" << vertexPosUi[vh] << "+"
-         << posOne << ") / " << vertexPosVi[vh] + posOne << "_(" << vertexPosVi[vh] << "+"
-         << posOne << ")\n\tvertex " << vh.idx() << leaf << " origin from he " << he.opp().idx() << " (adj. Face "
-         << he.opp().face().idx() << ")\n\t\tposition U / V: "
-         << vertexPosUi[vh] + posTwo << "_(" << vertexPosUi[vh] << "+"
-         << posTwo << ") / " << vertexPosVi[vh] + posTwo << "_(" << vertexPosVi[vh] << "+"
-         << posTwo << ")" << std::endl << "\tu row: " << _constraints[counter - 2] << std::endl << "\tv row: "
-         << _constraints[counter - 1] << std::endl << std::endl;
+//    std::string leaf = (leafcheck) ? " leaf" : " nonLeaf";
+//    abcd << "\tvertex " << vh.idx() << leaf << " origin from he " << he.idx() << " (adj. Face "
+//         << he.face().idx() << ")\n\t\tposition U / V: " << vertexPosUi[vh] + posOne << "_(" << vertexPosUi[vh] << "+"
+//         << posOne << ") / " << vertexPosVi[vh] + posOne << "_(" << vertexPosVi[vh] << "+"
+//         << posOne << ")\n\tvertex " << vh.idx() << leaf << " origin from he " << he.opp().idx() << " (adj. Face "
+//         << he.opp().face().idx() << ")\n\t\tposition U / V: "
+//         << vertexPosUi[vh] + posTwo << "_(" << vertexPosUi[vh] << "+"
+//         << posTwo << ") / " << vertexPosVi[vh] + posTwo << "_(" << vertexPosVi[vh] << "+"
+//         << posTwo << ")" << std::endl << "\tu row: " << _constraints[counter - 2] << std::endl << "\tv row: "
+//         << _constraints[counter - 1] << std::endl << std::endl;
 }
 
 int GlobalParametrization::getPositionConstraintRow(OpenMesh::SmartVertexHandle &vh, int cutGraphZone) {
@@ -1038,6 +953,7 @@ void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x) {
     trimesh_.request_vertex_status();
     initPropForSolVector();
     std::ofstream rest("/home/wuschelbueb/Desktop/data/rest.txt");
+    rest.close();
 
     for (auto he: trimesh_.halfedges()) {
         // && !trimesh_.status(he.to()).tagged()
@@ -1047,7 +963,7 @@ void GlobalParametrization::saveSolAsCoord(std::vector<double> &_x) {
     }
 
     //solution printed to file
-    rest.close();
+//    rest.close();
     int nFaces = trimesh_.n_faces(), nFacesIter = 0;
     std::ofstream xVector("/home/wuschelbueb/Desktop/data/xVectorGlobalParam.txt");
 
@@ -1124,9 +1040,9 @@ void GlobalParametrization::saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, 
         double v = _x[posV];
         OpenMesh::Vec2d p = {u, v};
         solCoordSysUV[vh][posOne] = p;
-        rest << "vertex " << vh.idx() << " origin from he " << he.idx() << " (adj. Face "
-             << he.face().idx() << ")\nposition U / V: " << vertexPosUi[vh] + posOne << " / "
-             << vertexPosVi[vh] + posOne << std::endl << std::endl;
+//        rest << "vertex " << vh.idx() << " origin from he " << he.idx() << " (adj. Face "
+//             << he.face().idx() << ")\nposition U / V: " << vertexPosUi[vh] + posOne << " / "
+//             << vertexPosVi[vh] + posOne << std::endl << std::endl;
     } else {
         int posU = vertexPosUi[he.to()];
         int posV = vertexPosVi[he.to()];
@@ -1135,9 +1051,9 @@ void GlobalParametrization::saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, 
         OpenMesh::Vec2d p = {u, v};
         solCoordSysUV[he.to()][0] = p;
         trimesh_.status(he.to()).set_tagged(true);
-        rest << "vertex " << he.to().idx() << " origin from he " << he.idx() << " (adj. Face "
-             << he.face().idx() << ")\nposition U / V: " << vertexPosUi[he.to()] << " / "
-             << vertexPosVi[he.to()] << std::endl << std::endl;
+//        rest << "vertex " << he.to().idx() << " origin from he " << he.idx() << " (adj. Face "
+//             << he.face().idx() << ")\nposition U / V: " << vertexPosUi[he.to()] << " / "
+//             << vertexPosVi[he.to()] << std::endl << std::endl;
     }
 }
 
