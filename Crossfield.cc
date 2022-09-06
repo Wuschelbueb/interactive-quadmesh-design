@@ -582,49 +582,6 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
         for (TriMesh::FaceVertexIter v_it = trimesh_.fv_iter(fh); v_it.is_valid(); ++v_it) {
             if (!trimesh_.status(*v_it).tagged() && !trimesh_.is_boundary(*v_it)) {
                 setCrossFieldIdx(v_it, faces.size(), heKappa, _x);
-//            } else if (!trimesh_.status(*v_it).tagged() && trimesh_.is_boundary(*v_it)) {
-//                double idx = 0;
-//                TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*v_it);
-//                ++vohe_it;
-//                for (; vohe_it.is_valid(); ++vohe_it) {
-//                    // need to skip boundary sector
-//                    if (trimesh_.is_boundary(vohe_it->prev()))
-//                        continue;
-//                    // add sector angle
-//                    double sector_angle = std::acos(trimesh_.calc_edge_vector(*vohe_it).normalize()
-//                                                    | -trimesh_.calc_edge_vector(vohe_it->prev()).normalize());
-//                    idx += sector_angle;
-//
-//                    // at boundaries the connection is zero per definition
-//                    double angle = 0, pj = 0, kappa;
-//                    if (!trimesh_.is_boundary(vohe_it->edge())) {
-//                        int position = 0;
-//                        auto it = heKappa.find(vohe_it->idx());
-//                        auto it2 = heKappa.find(vohe_it->opp().idx());
-//                        if (it != heKappa.end()) {
-//                            //return position of it in heKappa
-//                            position = std::distance(std::begin(heKappa), it);
-//                            //with position and faceSize we can extract p_ij value of _x vector (solution)
-//                            pj += _x[faces.size() + position];
-//                            kappa += it->second;
-//                        } else if (it2 != heKappa.end()) {
-//                            position = std::distance(std::begin(heKappa), it2);
-//                            pj -= _x[faces.size() + position];
-//                            kappa -= it->second;
-//                        }
-//                        int pos1 = positionHessianMatrix[vohe_it->face()];
-//                        int pos2 = positionHessianMatrix[vohe_it->opp().face()];
-//                        double theta1 = _x[pos1];
-//                        double theta2 = _x[pos2];
-////                        pj < 0 ? pj - 0.5 : pj + 0.5;
-//                        angle = theta1 - theta2 + pj * 0.5 * M_PI + kappa;
-//                    }
-//                    idx += angle;
-//                }
-//                idx = (0.5 - idx / (2.0 * M_PI));
-////                idx < 0 ? idx - 0.5 : idx + 0.5;
-//                crossFieldIdx[*v_it] = idx;
-//                trimesh_.status(*v_it).set_tagged(true);
             }
         }
     }
