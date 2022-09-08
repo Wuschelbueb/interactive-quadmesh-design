@@ -77,7 +77,6 @@ std::vector<int> GlobalParametrization::getSingularities() {
     for (auto vh: trimesh_.vertices()) {
         // try with != 0
         if (crossFieldIdx[vh] < -1E-1 || crossFieldIdx[vh] > 1E-1) {
-            std::cout << "singularity " << vh.idx() << " with value " << crossFieldIdx[vh] << std::endl;
             singularities.push_back(vh.idx());
         }
     }
@@ -547,7 +546,6 @@ void GlobalParametrization::createSectorsOnCutGraph(std::vector<int> &singularit
                 }
             }
             if (singTest) {
-                std::cout << "startVertex " << vh.idx() << std::endl;
                 propagation(singularity, ohe);
                 break;
             }
@@ -572,18 +570,18 @@ void GlobalParametrization::propagation(int &singularity, OpenMesh::SmartHalfedg
             if (prevCutHe.opp() == currentCutHe) {
                 color++;
             }
-            std::cout << "he is " << he.idx() << " part of Cut\n"
-                      << "prevCut " << prevCutHe << "\ncurrentCut "
-                      << currentCutHe << std::endl;
+//            std::cout << "he is " << he.idx() << " part of Cut\n"
+//                      << "prevCut " << prevCutHe << "\ncurrentCut "
+//                      << currentCutHe << std::endl;
         } else if (!he.opp().is_boundary()) {
             he = he.opp();
-            std::cout << "he is " << he.idx() << " bound" << std::endl;
+//            std::cout << "he is " << he.idx() << " bound" << std::endl;
         }
-        std::cout << "new he is " << he.idx() << std::endl;
+//        std::cout << "new he is " << he.idx() << std::endl;
         if (firstHe == he) {
             cutGraphFZone[he.face()] = 1;
             cutGraphFZone[he.prev().opp().face()] = 1;
-            std::cout << "reached end\n";
+//            std::cout << "reached end\n";
             done = true;
         }
         if (done && color == 2 && cutGraphHe[prevCutHe.opp()] && !cutGraphHe[currentCutHe.opp()]) {
@@ -1019,6 +1017,9 @@ void GlobalParametrization::initPropForSolVector() {
         if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
             solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
             trimesh_.status(he.to()).set_tagged(false);
+        } else if (!trimesh_.is_boundary(he) && !faceSel[he.face()]) {
+            solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
+            trimesh_.status(he.to()).set_tagged(true);
         }
     }
 }
