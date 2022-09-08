@@ -9,6 +9,7 @@
 #include <OpenFlipper/BasePlugin/LoadSaveInterface.hh>
 #include <OpenFlipper/BasePlugin/TextureInterface.hh>
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
+#include <OpenMesh/Core/Utils/PropertyManager.hh>
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include "MastersThesisToolbar.hh"
 
@@ -74,7 +75,7 @@ private slots:
 
     void pluginsInitialized();
 
-    const char *texture_name() const { return "quad"; }
+    const char *texture_name() const { return "quadTextr"; }
 
 public :
 

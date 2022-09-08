@@ -4,33 +4,24 @@
 
 #include "Get2DTexture.h"
 
-void Get2DTexture::initProperty(OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture) {
-//    auto quad = OpenMesh::HProp<OpenMesh::Vec3f>(trimesh_, "quad");
+void Get2DTexture::initProperty() {
+    auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr");
     for (auto he: trimesh_.halfedges()) {
-//        quad[he] = {0, 0, 0};
-        trimesh_.property(hp_texture, he) = {0, 0};
+        quadTextr[he] = {0, 0};
     }
 }
 
-void Get2DTexture::get2DTexture(TriMesh::FaceHalfedgeIter &fh_it, double &u, double &v) {
-//    auto quad = OpenMesh::HProp<OpenMesh::Vec3f>(trimesh_, "quad");
+void Get2DTexture::get2DTexture(OpenMesh::SmartHalfedgeHandle he) {
+    auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
-    auto vh = fh_it->to();
-//    std::cout << "vertex " << vh.idx() << " with app: " << vertexAppearanceCG[vh] << std::endl;
-    OpenMesh::Vec2d uvCoord;
-    if (vertexAppearanceCG[vh] > 1 && cutGraphFZone[fh_it->face()] != 0) {
-        int pos = getPositionConstraintRow(vh, cutGraphFZone[fh_it->face()]);
-//        std::cout << "position " << pos << std::endl;
-        uvCoord = solCoordSysUV[vh][pos];
-//        std::cout << "uvCoord (if) " << solCoordSysUV[vh][pos] << std::endl;
-    } else {
-        uvCoord = solCoordSysUV[vh][0];
-//        std::cout << "uvCoord (else) " << solCoordSysUV[vh][0] << std::endl;
+    auto vh = he.to();
+    int pos = 0;
+    if (vertexAppearanceCG[vh] > 1) {
+        pos = getPositionConstraintRow(vh, cutGraphFZone[he.face()]);
     }
-    u = uvCoord[0];
-    v = uvCoord[1];
+    quadTextr[he] = solCoordSysUV[vh][pos];
 }
 
 int Get2DTexture::getPositionConstraintRow(OpenMesh::SmartVertexHandle &vh, int cutGraphZone) {

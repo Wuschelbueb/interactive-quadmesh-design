@@ -37,8 +37,6 @@ void MastersThesisPlugin::slot_get_boundary() {
         if (trimesh) {
             DijkstraDistance dijkDistMesh{*trimesh};
             dijkDistMesh.cleanMeshOfProps();
-            emit updateView();
-            emit updatedObject(o_it->id(), UPDATE_ALL);
             heConstraints = dijkDistMesh.getHeConstraints();
             std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
             includedHEdges = dijkDistMesh.getHeVectorOfSelection(includedNodes);
@@ -89,33 +87,22 @@ void MastersThesisPlugin::slot_get_2d_texture() {
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
         if (trimesh) {
-            Get2DTexture mesh{*trimesh};
-            std::cout << texture_name() << std::endl;
+            auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(*trimesh, "quadTextr");
+            const char *propertyName = quadTextr.getName().c_str();
 
-            // copy scale texture coordinates to mesh property and set view mode
-//          double scale = tool_->uvScaleSpinBox->value();
-            OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture;
-            if (!trimesh->get_property_handle(hp_texture, texture_name())) {
-                trimesh->add_property(hp_texture, texture_name());
-            }
-            mesh.initProperty(hp_texture);
-//            mesh.initProperty();
-//          double u_off = tool_->u_offset_sb->value();
-//          double v_off = tool_->v_offset_sb->value();
-            for (TriMesh::FaceIter f_it = trimesh->faces_begin(); f_it != trimesh->faces_end(); ++f_it) {
-                for (TriMesh::FaceHalfedgeIter fh_it = trimesh->fh_iter(*f_it); fh_it.is_valid(); ++fh_it) {
-                    double u, v;
-//                    std::cout << "new iteration with he: " << fh_it->idx() << "\n";
-                    mesh.get2DTexture(fh_it, u, v);
-//                    std::cout << "halfedge " << fh_it->idx() << "\tu " << u << "\tv " << v << std::endl;
-                    trimesh->property(hp_texture, *fh_it) = {u, v};
+            Get2DTexture mesh{*trimesh};
+            mesh.initProperty();
+            for (auto he: trimesh->halfedges()) {
+                if (!he.is_boundary()) {
+                    mesh.get2DTexture(he);
                 }
             }
-//            auto test = OpenMesh::getProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec3f>(trimesh, "quad");
-            emit switchTexture(texture_name(), o_it->id());
-            emit updatedTextures(texture_name(), o_it->id());
-
-            PluginFunctions::setDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
+            //todo doesn't work, fix
+            emit switchTexture(propertyName, o_it->id());
+            emit updatedTextures(propertyName, o_it->id());
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
+//            PluginFunctions::setDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
         }
     }
 }

@@ -49,15 +49,13 @@ public:
      * initialize property to zero.\n
      * @param hp_texture property
      */
-    void initProperty(OpenMesh::HPropHandleT<ACG::Vec2d> hp_texture);
+    void initProperty();
 
     /**
      * get vertex position in u,v system.
-     * @param fh_it halfedge handle
-     * @param u u parameter of u,v system
-     * @param v v parameter of u,v system
+     * @param he halfedge handle
      */
-    void get2DTexture(TriMesh::FaceHalfedgeIter &fh_it, double &u, double &v);
+    void get2DTexture(OpenMesh::SmartHalfedgeHandle he);
 
 
 private:
