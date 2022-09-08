@@ -576,5 +576,9 @@ void DijkstraDistance::cleanMeshOfProps() {
         auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour").getRawProperty();
         trimesh_.remove_property(propH);
     }
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2d>(trimesh_, "quadTextr")) {
+        auto propH = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
     trimesh_.garbage_collection();
 }
