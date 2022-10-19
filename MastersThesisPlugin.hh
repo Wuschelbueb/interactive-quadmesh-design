@@ -95,7 +95,7 @@ public slots:
     /**
      * get crossfield for each triangle.\n
      */
-    void slot_get_dualGraph();
+    void slot_get_crossfield();
 
     /**
      * create global parametrization for selection.\n

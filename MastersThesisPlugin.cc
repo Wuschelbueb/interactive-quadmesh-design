@@ -3,6 +3,7 @@
 #include "Crossfield.hh"
 #include "GlobalParametrization.hh"
 #include "Get2DTexture.h"
+#include "PatchPreview.hh"
 
 void MastersThesisPlugin::initializePlugin() {
     tool_ = new MastersThesisToolbar();
@@ -10,7 +11,7 @@ void MastersThesisPlugin::initializePlugin() {
     tool_->resize(size);
 
     connect(tool_->get_selection, SIGNAL(clicked()), this, SLOT(slot_get_boundary()));
-    connect(tool_->getDualGraph, SIGNAL(clicked()), this, SLOT(slot_get_dualGraph()));
+    connect(tool_->getDualGraph, SIGNAL(clicked()), this, SLOT(slot_get_crossfield()));
     connect(tool_->getGlobalParam, SIGNAL(clicked()), this, SLOT(slot_get_global_param()));
     connect(tool_->get2DTexture, SIGNAL(clicked()), this, SLOT(slot_get_2d_texture()));
 
@@ -36,20 +37,23 @@ void MastersThesisPlugin::slot_get_boundary() {
 
         if (trimesh) {
             DijkstraDistance dijkDistMesh{*trimesh};
+//            PatchPreview patch{*trimesh};
+//            patch.getCurvature();
             dijkDistMesh.cleanMeshOfProps();
             heConstraints = dijkDistMesh.getHeConstraints();
             std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
             includedHEdges = dijkDistMesh.getHeVectorOfSelection(includedNodes);
             dijkDistMesh.colorizeEdges(includedHEdges);
             // change layer of display
-            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
-            emit updatedObject(o_it->id(), UPDATE_ALL);
+            // set draw mode
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED);
+            emit updatedObject(tri_obj->id(), UPDATE_ALL);
         }
     }
-
 }
 
-void MastersThesisPlugin::slot_get_dualGraph() {
+void MastersThesisPlugin::slot_get_crossfield() {
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
         // create mesh
@@ -102,7 +106,7 @@ void MastersThesisPlugin::slot_get_2d_texture() {
             emit updatedTextures(propertyName, o_it->id());
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
                     ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
-//            PluginFunctions::setDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED);
+            emit updatedObject(o_it->id(), UPDATE_ALL);
         }
     }
 }
