@@ -4,13 +4,9 @@ void
 DijkstraDistance::calcDijkstraWSingularities(std::vector<int> &complementHEdges, std::vector<int> &singularities,
                                              std::vector<int> &cutGraphWoBoundary) {
     trimesh_.request_vertex_status();
-    for (auto vh: trimesh_.vertices()) {
-        trimesh_.status(vh).set_tagged(false);
-        trimesh_.status(vh).set_tagged2(false);
-    }
     std::vector<int> cutGraphVertices = createVerticesVector(complementHEdges, singularities);
     initProperties(cutGraphVertices, true);
-    for (int i: singularities) {
+    for (const int &i: singularities) {
         if (!trimesh_.status(trimesh_.vertex_handle(i)).tagged2()) {
             calculateVDijkstra(i);
             addPathToCutGraph(cutGraphVertices, complementHEdges, i, cutGraphWoBoundary);
@@ -25,14 +21,16 @@ std::vector<int>
 DijkstraDistance::createVerticesVector(std::vector<int> &complementHEdges, std::vector<int> &singularities) {
     std::vector<int> dualGraphVertices;
     //if both singularities and complementHEdges are empty crash
-    for (int i: complementHEdges) {
+    for (const int &i: complementHEdges) {
         auto heh = trimesh_.halfedge_handle(i);
         auto vht = trimesh_.to_vertex_handle(heh);
         auto vhf = trimesh_.from_vertex_handle(heh);
-        if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vhf.idx()) == dualGraphVertices.end()) {
+        auto findVhf = std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vhf.idx());
+        auto findVht = std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vht.idx());
+        if (findVhf == dualGraphVertices.end()) {
             dualGraphVertices.push_back(vhf.idx());
         }
-        if (std::find(dualGraphVertices.begin(), dualGraphVertices.end(), vht.idx()) == dualGraphVertices.end()) {
+        if (findVht == dualGraphVertices.end()) {
             dualGraphVertices.push_back(vht.idx());
         }
     }
@@ -49,7 +47,7 @@ void DijkstraDistance::initProperties(std::vector<int> &cutGraphVertices, const 
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     int max = INT_MAX, zeroDist = 0.0, standardAppearance = 1;
-    for (auto vh: trimesh_.vertices()) {
+    for (const auto &vh: trimesh_.vertices()) {
         vertexDist[vh] = max;
         trimesh_.status(vh).set_tagged(false);
         if (first_it) {
@@ -58,7 +56,7 @@ void DijkstraDistance::initProperties(std::vector<int> &cutGraphVertices, const 
             vertexAppearanceCG[vh] = standardAppearance;
         }
     }
-    for (auto i: cutGraphVertices) {
+    for (const auto &i: cutGraphVertices) {
         auto vh = trimesh_.vertex_handle(i);
         vertexDist[vh] = zeroDist;
         if (first_it) {
@@ -66,19 +64,6 @@ void DijkstraDistance::initProperties(std::vector<int> &cutGraphVertices, const 
             vertexPredecessor[vh] = vh.idx();
         }
     }
-}
-
-int DijkstraDistance::vertexGetSmallestDist() {
-    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
-    double minDistance = DBL_MAX;
-    int idx = INT_MAX;
-    for (auto vh: trimesh_.vertices()) {
-        if (!trimesh_.status(vh).tagged() && vertexDist[vh] < minDistance) {
-            minDistance = vertexDist[vh];
-            idx = vh.idx();
-        }
-    }
-    return idx;
 }
 
 void DijkstraDistance::calculateVDijkstra(const int i) {
@@ -106,29 +91,39 @@ void DijkstraDistance::calculateVDijkstra(const int i) {
     }
 }
 
+int DijkstraDistance::vertexGetSmallestDist() {
+    auto vertexDist = OpenMesh::VProp<double>(trimesh_, "vertexDist");
+    double minDistance = DBL_MAX;
+    int idx = INT_MAX;
+    for (const auto &vh: trimesh_.vertices()) {
+        if (!trimesh_.status(vh).tagged() && vertexDist[vh] < minDistance) {
+            minDistance = vertexDist[vh];
+            idx = vh.idx();
+        }
+    }
+    return idx;
+}
+
 void DijkstraDistance::addPathToCutGraph(std::vector<int> &cutGraphVertices, std::vector<int> &complementHEdges,
                                          const int i, std::vector<int> &cutGraphWoBoundary) {
     auto vertexPredecessor = OpenMesh::VProp<int>(trimesh_, "vertexPredecessor");
     auto vertexOrigin = OpenMesh::VProp<int>(trimesh_, "vertexOrigin");
     auto cutGraphHe = OpenMesh::HProp<bool>(trimesh_, "cutGraphHe");;
     auto vh = trimesh_.vertex_handle(i);
-    bool flag = true;
-    while (flag) {
-        if (std::find(cutGraphVertices.begin(), cutGraphVertices.end(), vh.idx()) == cutGraphVertices.end()) {
-            auto vh_pred = trimesh_.vertex_handle(vertexPredecessor[vh]);
-            auto heh = trimesh_.find_halfedge(vh, vh_pred);
-            auto oheh = trimesh_.opposite_halfedge_handle(heh);
-            cutGraphVertices.push_back(vh.idx());
-            complementHEdges.push_back(heh.idx());
-            complementHEdges.push_back(oheh.idx());
-            cutGraphWoBoundary.push_back(heh.idx());
-            cutGraphWoBoundary.push_back(oheh.idx());
-            vh = vh_pred;
-            cutGraphHe[heh] = true;
-            cutGraphHe[oheh] = true;
-        } else {
-            flag = false;
-        }
+    auto iter1 = std::find(cutGraphVertices.begin(), cutGraphVertices.end(), vh.idx());
+    while (iter1 == cutGraphVertices.end()) {
+        auto vh_pred = trimesh_.vertex_handle(vertexPredecessor[vh]);
+        auto heh = trimesh_.find_halfedge(vh, vh_pred);
+        auto oheh = trimesh_.opposite_halfedge_handle(heh);
+        cutGraphVertices.push_back(vh.idx());
+        complementHEdges.push_back(heh.idx());
+        complementHEdges.push_back(oheh.idx());
+        cutGraphWoBoundary.push_back(heh.idx());
+        cutGraphWoBoundary.push_back(oheh.idx());
+        vh = vh_pred;
+        cutGraphHe[heh] = true;
+        cutGraphHe[oheh] = true;
+        iter1 = std::find(cutGraphVertices.begin(), cutGraphVertices.end(), vh.idx());
     }
 }
 
@@ -147,7 +142,7 @@ void DijkstraDistance::initDualGraphProp(const std::vector<int> &faces) {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
 
-    for (auto fh: trimesh_.faces()) {
+    for (const auto &fh: trimesh_.faces()) {
         dualGraphDist[fh] = initValue;
         dualGraphOrigin[fh] = initValue;
         dualGraphPred[fh] = initValue;
@@ -192,7 +187,7 @@ int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
     auto dualGraphDist = OpenMesh::FProp<double>(trimesh_, "dualGraphDist");
     double minDistance = DBL_MAX;
     int idx = INT_MAX;
-    for (int i: faces) {
+    for (const int &i: faces) {
         auto fh = trimesh_.face_handle(i);
         if (!trimesh_.status(fh).tagged() && dualGraphDist[fh] < minDistance) {
             minDistance = dualGraphDist[fh];
@@ -205,7 +200,7 @@ int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
 void DijkstraDistance::colorDualGraph() {
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
-    for (auto fh: trimesh_.faces()) {
+    for (const auto &fh: trimesh_.faces()) {
         for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
             // border of 3d object
             if (fh.is_boundary() && (dualGraphOrigin[fh] != INT_MAX)) {
@@ -564,16 +559,6 @@ void DijkstraDistance::cleanMeshOfProps() {
 //    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
     if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexPosVi")) {
         auto propH = OpenMesh::VProp<int>(trimesh_, "vertexPosVi").getRawProperty();
-        trimesh_.remove_property(propH);
-    }
-//    auto uVectorFieldRotThree = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree");
-    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotThree")) {
-        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotThree").getRawProperty();
-        trimesh_.remove_property(propH);
-    }
-//    auto uVectorFieldRotFour= OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour");
-    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, Point>(trimesh_, "uVectorFieldRotFour")) {
-        auto propH = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotFour").getRawProperty();
         trimesh_.remove_property(propH);
     }
     if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2d>(trimesh_, "quadTextr")) {

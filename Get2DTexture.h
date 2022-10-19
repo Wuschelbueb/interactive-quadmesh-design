@@ -54,6 +54,8 @@ public:
     /**
      * get vertex position in u,v system.
      * @param he halfedge handle
+     * @param u u parameter of u,v system
+     * @param v v parameter of u,v system
      */
     void get2DTexture(OpenMesh::SmartHalfedgeHandle he);
 

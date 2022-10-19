@@ -17,6 +17,7 @@
 #include <CoMISo/Solver/ConstrainedSolver.hh>
 #include <gmm/gmm.h>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <vector>
 #include <float.h>
@@ -87,7 +88,7 @@ private:
 
     /**
      * create a local coordsystem for each face.\n
-     * calls createSomeMatrix, createEdgesAndLocalVUi and createBasisTfMtx.\n
+     * calls createMatrix3v3, createEdgesAndLocalVUi and createBasisTfMtx.\n
      * @param faces vector of faces of selection
      */
     void setUpLocFaceCoordSys(const std::vector<int> &faces);
@@ -104,7 +105,7 @@ private:
      * create basis transformation matrix for each face.\n
      * takes edges vector, CMatrix and creates based on equations from jupyternotebook the basis transformation matrix.\n
      * @param fh face handle
-     * @param _abc matrix from createSomeMatrix
+     * @param _abc matrix from createMatrix3v3
      * @param edges vector with three edges
      */
     void createBasisTfMtx(const OpenMesh::FaceHandle fh, gmm::col_matrix<std::vector<double> > &_abc,
@@ -114,13 +115,13 @@ private:
      * extract singularities from crossfield index.\n
      * @return vector with singularities
      */
-    std::vector<int> getSingularities();
+    std::vector<int> getSingularities(std::vector<int> &faces);
 
     /**
      * is a 3x3 matrix. u_x calculations get expressed with this matrix.\n
      * @return return matrix
      */
-    static gmm::col_matrix<std::vector<double>> createSomeMatrix();
+    static gmm::col_matrix<std::vector<double>> createMatrix3v3();
 
     /**
      * get rhs vector.\n
@@ -152,7 +153,9 @@ private:
      * @param rhsSizePartTwo nb of jk Values; based on the number of halfedges in cutgraph.
      * @return returns hessian sparse column matrix.
      */
-    CMatrixType getHessian(const int rhsSizePartOne, const int rhsSizePartTwo, std::vector<int> &cutGraphWoBoundary);
+    GlobalParametrization::CMatrixType getHessian(const int rhsSizePartOne, const int rhsSizePartTwo,
+                                                  std::vector<int> &cutGraphWoBoundary,
+                                                  const std::vector<int> &faces);
 
     /**
      * responsible to fill up diagonal of hessian matrix.\n
@@ -181,8 +184,9 @@ private:
      * @return constraints row matrix.
      */
     gmm::row_matrix<gmm::wsvector<double>>
-    getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary, std::vector<int> &onlyBoundaries,
-                   std::vector<int> &singularities);
+    getConstraints(const int nbVerticesUaV, std::vector<int> &cutGraphWoBoundary,
+                   std::vector<int> &onlyBoundaries, std::vector<int> &singularities,
+                   std::vector<int> &faces);
 
     /**
      * counts the amount of vertices, including if appearing multiple times.\n
@@ -197,7 +201,9 @@ private:
      * @param singularities vector of vertices
      * @param _constraints row matrix
      */
-    void setZeroPointConstraint(std::vector<int> &singularities, gmm::row_matrix<gmm::wsvector<double>> &_constraints);
+    void setZeroPointConstraint(std::vector<int> &singularities,
+                                gmm::row_matrix<gmm::wsvector<double>> &_constraints,
+                                std::vector<int> &faces);
 
     /**
      * iterate through cutGraphWoBoundary to fill up rows of constraint matrix.\n
@@ -221,8 +227,8 @@ private:
      * @param _constraints row matrix
      */
     void setConRows(int &counter, int &jkStartCounter, const int diff, OpenMesh::SmartHalfedgeHandle &he,
-                    OpenMesh::SmartVertexHandle &vh, gmm::row_matrix<gmm::wsvector<double>> &_constraints,
-                    std::ofstream &abcd);
+                    OpenMesh::SmartVertexHandle &vh,
+                    gmm::row_matrix<gmm::wsvector<double>> &_constraints);
 
     /**
      * gets position of uv value, i.e. which column of the row the values need to be assigned.\n
@@ -386,7 +392,7 @@ private:
      * @param nbVerticesUaV start of jkValues
      */
     void
-    saveSolAsCoord(std::vector<double> &_x);
+    saveSolAsCoord(std::vector<double> &_x, std::vector<int> &faces);
 
     /**
      * set up status for use in getSolFromVerticesWMoreOneApp and getSolFromVerticesWOneApp.\n
@@ -398,7 +404,7 @@ private:
      * @param fh halfedge handle
      * @param _x solution vector
      */
-    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x, std::ofstream &rest);
+    void saveSolToVertices(OpenMesh::SmartHalfedgeHandle he, std::vector<double> &_x);
 
     void colorCompBoundaries(std::vector<int> &onlyBoundaries);
 
@@ -406,7 +412,7 @@ private:
     setFeatureLineConstraint(gmm::row_matrix<gmm::wsvector<double>> &_constraints, std::vector<int> &onlyBoundaries,
                              const int startingPoint);
 
-    void propagation(int &singularity, OpenMesh::SmartHalfedgeHandle he);
+    void propagation(const int &singularity, OpenMesh::SmartHalfedgeHandle he);
 };
 
 
