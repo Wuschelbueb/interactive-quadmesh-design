@@ -1033,10 +1033,10 @@ void GlobalParametrization::initPropForSolVector() {
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
     for (const auto &he: trimesh_.halfedges()) {
-        if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
+        if (!trimesh_.is_boundary(he) && he.face().is_valid() && faceSel[he.face()]) {
             solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
             trimesh_.status(he.to()).set_tagged(false);
-        } else if (!trimesh_.is_boundary(he) && !faceSel[he.face()]) {
+        } else if (!trimesh_.is_boundary(he) && he.face().is_valid() && !faceSel[he.face()]) {
             solCoordSysUV[he.to()] = std::vector<OpenMesh::Vec2d>(vertexAppearanceCG[he.to()], {0, 0});
             trimesh_.status(he.to()).set_tagged(true);
         }
@@ -1085,7 +1085,7 @@ void GlobalParametrization::setFeatureLineConstraint(gmm::row_matrix<gmm::wsvect
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
     auto vertexAppearanceCG = OpenMesh::VProp<int>(trimesh_, "vertexAppearanceCG");
     int counter = 0;
-    for (const int& i: onlyBoundaries) {
+    for (const int &i: onlyBoundaries) {
         auto heh = make_smart(trimesh_.halfedge_handle(i), trimesh_);
         int posFrom = 0, posTo = 0, rotation = currentPJ[heh.face()] % 4;
         if (vertexAppearanceCG[heh.to()] > 1) {
