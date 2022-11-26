@@ -40,8 +40,8 @@ public:
      *      heInRange_ = heInRange;
      * }
      */
-    Crossfield(TriMesh &trimesh, std::vector<int> &heInRange, std::vector<int> &heConstraints)
-            : trimesh_{trimesh}, heInRange_{heInRange}, heConstraints_{heConstraints} {
+    Crossfield(TriMesh &trimesh, std::vector<int> &heInRange, std::vector<int> &heConstraints, ACG::Vec3d refVector = {0,0,0})
+            : trimesh_{trimesh}, heInRange_{heInRange}, heConstraints_{heConstraints}, refVector_{refVector} {
     }
 
     ~Crossfield() {
@@ -375,6 +375,7 @@ private:
      * halfedges which were selected by selection tool.
      */
     std::vector<int> &heConstraints_;
+    ACG::Vec3d refVector_;
 
 
 };

@@ -76,7 +76,7 @@ void Crossfield::getCrossfield() {
 void Crossfield::createCrossfields(const std::vector<int> &faces) {
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
     auto uVectorFieldRotTwo = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotTwo");
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         std::vector<Point> PiRotVec;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         Point rotVec = uVectorFieldRotOne[fh];
@@ -149,7 +149,7 @@ std::vector<int> Crossfield::getConstrainedHe() {
     for (auto fh: trimesh_.faces()) {
         trimesh_.status(fh).set_tagged(false);
     }
-    for (const int& i: heConstraints_) {
+    for (const int &i: heConstraints_) {
         auto heh = make_smart(trimesh_.halfedge_handle(i), trimesh_);
         //(std::find(faceConst.begin(), faceConst.end(), heh.face().idx()) == faceConst.end())
         if (heh.face().is_valid() && !heh.face().tagged()) {
@@ -165,7 +165,7 @@ int Crossfield::getAmountPJConstraints(const std::vector<int> &faces) {
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
     auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     int counter = 0;
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         auto fh = trimesh_.face_handle(i);
         if (fh.idx() != origin_constraint[fh]) {
             counter += 1;
@@ -179,7 +179,7 @@ void Crossfield::getThetaConstraints(const int n_col, int &counter, std::vector<
     auto constraint_angle = OpenMesh::FProp<double>(trimesh_, "constraint_angle");
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     auto referenceHeIdx = OpenMesh::FProp<int>(trimesh_, "referenceHeIdx");
-    for (const int& i: faceConstraints) {
+    for (const int &i: faceConstraints) {
         OpenMesh::HalfedgeHandle hehConst = trimesh_.halfedge_handle(i);
         OpenMesh::FaceHandle fh = trimesh_.face_handle(hehConst);
         double constraint = constraint_angle[fh];
@@ -196,7 +196,7 @@ void Crossfield::getPJConstraints(const std::map<int, double> &heKappa, int &cou
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
     auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
     int iteration = 0, temp = 0;
-    for (const auto& j: heKappa) {
+    for (const auto &j: heKappa) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(j.first);
         OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
@@ -234,7 +234,7 @@ std::vector<double> Crossfield::getRHS(const std::map<int, double> &heKappa, con
 
 void Crossfield::getRhsFirstHalf(const std::vector<int> &faces, std::vector<double> &_rhs,
                                  const std::map<int, double> &heKappa) {
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         getSum(i, _rhs, heKappa);
     }
 }
@@ -294,7 +294,7 @@ Crossfield::getHessianMatrix(const std::vector<int> &faces, const std::map<int, 
     gmm::col_matrix<gmm::wsvector<double>> _H(n, n);
 
     // fills up sparse column matrix _H
-    for (const auto& i: heKappa) {
+    for (const auto &i: heKappa) {
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
         OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
         OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
@@ -361,7 +361,7 @@ void Crossfield::setPositionInHessianForFaces(const std::map<int, double> &heKap
 
 std::map<int, double> Crossfield::getMapHeKappa(const std::vector<int> &faces) {
     std::map<int, double> heKappa;
-    for (const int& i: faces) {
+    for (const int &i: faces) {
 //        std::cout << "face: " << i << std::endl;
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
@@ -474,7 +474,6 @@ std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
         trimesh_.status(fh).set_tagged(false);
     }
     std::vector<int> faces;
-    int temp = INT_MAX;
     // add faces of constraint halfedges to faces vector and add reference halfedge
     for (int i: heConstraints_) {
         setRefHeToFace(i, faces);
@@ -527,13 +526,13 @@ void Crossfield::getConstraintAngleAndVecField(const std::vector<int> &faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(referenceHeIdx[fh]);
         Point u = trimesh_.calc_edge_vector(heh);
-        Point v = u % trimesh_.calc_face_normal(fh);
-        double xComponent = OpenMesh::dot(u, u);
-        // should always be zero, since u is x-axis, 90deg and stuff
-        double yComponent = OpenMesh::dot(u, v);
-        double alpha = std::atan2(yComponent, xComponent);
+        Point v = refVector_;
+        double alpha = std::atan2(v[1], v[0]) - std::atan2(u[1], u[0]);
         if (alpha < 1E-3 && alpha > -1E-3) {
             alpha = 0;
+        }
+        if (alpha < 0) {
+            alpha += 2 * M_PI;
         }
         uVectorField[fh] = u;
         constraint_angle[fh] = alpha;
@@ -545,7 +544,7 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     auto uVectorField = OpenMesh::FProp<Point>(trimesh_, "uVectorField");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         int position = positionHessianMatrix[fh];
         Point p_x = uVectorField[fh];
@@ -569,7 +568,7 @@ void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<
         crossFieldIdx[vh] = 0;
         trimesh_.status(vh).set_tagged(false);
     }
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         for (TriMesh::FaceVertexIter v_it = trimesh_.fv_iter(fh); v_it.is_valid(); ++v_it) {
             if (!trimesh_.status(*v_it).tagged() && !trimesh_.is_boundary(*v_it)) {
@@ -672,7 +671,7 @@ void Crossfield::colorFaces(const std::vector<int> &faces) {
     for (TriMesh::FaceIter f_it = trimesh_.faces_begin(); f_it != trimesh_.faces_end(); ++f_it) {
         faceSel[*f_it] = false;
     }
-    for (const int& i: faces) {
+    for (const int &i: faces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
         faceSel[fh] = true;
     }
@@ -683,10 +682,10 @@ void Crossfield::colorHEdges() {
     for (TriMesh::HalfedgeIter he_it = trimesh_.halfedges_begin(); he_it != trimesh_.halfedges_end(); ++he_it) {
         heColor(*he_it) = 1;
     }
-    for (const int& i: heInRange_) {
+    for (const int &i: heInRange_) {
         heColor(trimesh_.halfedge_handle(i)) = 2;
     }
-    for (const int& i: heConstraints_) {
+    for (const int &i: heConstraints_) {
         heColor(trimesh_.halfedge_handle(i)) = 3;
     }
 }
@@ -713,7 +712,7 @@ Crossfield::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec
 void Crossfield::setPJProp(std::map<int, double> &heKappa, std::vector<double> &_x, const int faceSize) {
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
     int position = faceSize;
-    for (const auto & it : heKappa) {
+    for (const auto &it: heKappa) {
         auto he = trimesh_.halfedge_handle(it.first);
         periodJump[he] = _x[position++];
 
