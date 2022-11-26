@@ -114,6 +114,16 @@
          </item>
         </layout>
        </item>
+       <item>
+        <widget class="QPushButton" name="testButton">
+         <property name="text">
+          <string>test</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
