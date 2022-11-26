@@ -379,49 +379,32 @@ int DijkstraDistance::getSmallestDistProp(const double refDist) {
 
 std::vector<int> DijkstraDistance::getHeConstraints() {
     std::vector<int> constraints;
-    getSelectedEdges(constraints);
-    getSelectedHEdges(constraints);
-    getSelectedFaces(constraints);
+    getSelectedVertices(constraints);
     return constraints;
 }
 
-void DijkstraDistance::getSelectedEdges(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getEdgeSelection(&trimesh_);
-    for (int i: selection) {
-        // avoids duplicates with std::find
-        OpenMesh::EdgeHandle eh = trimesh_.edge_handle(i);
-        OpenMesh::HalfedgeHandle heh1 = trimesh_.halfedge_handle(eh, 0);
-        OpenMesh::HalfedgeHandle heh2 = trimesh_.halfedge_handle(eh, 1);
 
-        if (std::find(constraints.begin(), constraints.end(), heh1.idx()) == constraints.end()) {
-            constraints.push_back(heh1.idx());
+void DijkstraDistance::getSelectedVertices(std::vector<int> &constraints) {
+    std::vector<int> vertexSelection;
+    try {
+        vertexSelection = MeshSelection::getVertexSelection(&trimesh_);
+        if (vertexSelection.empty()) {
+            throw std::invalid_argument("No Vertex selected! Select One!");
+        } else if (vertexSelection.size() > 1) {
+            throw std::invalid_argument("Select ONLY 1 vertex!");
         }
-        if (std::find(constraints.begin(), constraints.end(), heh2.idx()) == constraints.end()) {
-            constraints.push_back(heh2.idx());
-        }
-    }
-}
-
-void DijkstraDistance::getSelectedHEdges(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getHalfedgeSelection(&trimesh_);
-    for (int i: selection) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i);
-        // avoids duplicates with std::find
-        if (std::find(constraints.begin(), constraints.end(), heh.idx()) == constraints.end())
-            constraints.push_back(heh.idx());
-    }
-}
-
-void DijkstraDistance::getSelectedFaces(std::vector<int> &constraints) {
-    std::vector<int> selection = MeshSelection::getFaceSelection(&trimesh_);
-    for (int i: selection) {
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
-            // avoids duplicates with std::find
-            if (std::find(constraints.begin(), constraints.end(), fh_it->idx()) == constraints.end()) {
-                constraints.push_back(fh_it->idx());
+        for (int i: vertexSelection) {
+            OpenMesh::VertexHandle vh = trimesh_.vertex_handle(i);
+            for (auto voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
+                if (!voh_it->is_boundary()) {
+                    constraints.push_back(voh_it->idx());
+                }
             }
         }
+    }
+        // todo: print to openflipper window
+    catch (const std::invalid_argument &e) {
+        std::cerr << e.what() << std::endl;
     }
 }
 
@@ -567,3 +550,4 @@ void DijkstraDistance::cleanMeshOfProps() {
     }
     trimesh_.garbage_collection();
 }
+

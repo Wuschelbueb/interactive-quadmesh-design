@@ -191,25 +191,9 @@ private:
      */
     int getSmallestDistProp(const double refDist);
 
-    /**
-     * gets selection of edges as halfedges.\n
-     * @param constraints vector which contains the selection as halfedges
-     */
-    void getSelectedEdges(std::vector<int> &constraints);
-
-    /**
-     * gets selection of halfedges.
-     * @param constraints vector which contains the selection as halfedges
-     */
-    void getSelectedHEdges(std::vector<int> &constraints);
-
-    /**
-     * gets selection of faces and saves the halfedges of face.\n
-     * @param constraints vector which contains the selection as halfedges
-     */
-    void getSelectedFaces(std::vector<int> &constraints);
-
     TriMesh &trimesh_;
+
+    void getSelectedVertices(std::vector<int> &constraints);
 };
 
 
