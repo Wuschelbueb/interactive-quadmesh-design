@@ -4,6 +4,7 @@
 #include "GlobalParametrization.hh"
 #include "Get2DTexture.h"
 #include "PatchPreview.hh"
+#include "myShaderNode.hh"
 
 
 void MastersThesisPlugin::initializePlugin() {
@@ -15,7 +16,7 @@ void MastersThesisPlugin::initializePlugin() {
     connect(tool_->getDualGraph, SIGNAL(clicked()), this, SLOT(slot_get_crossfield()));
     connect(tool_->getGlobalParam, SIGNAL(clicked()), this, SLOT(slot_get_global_param()));
     connect(tool_->get2DTexture, SIGNAL(clicked()), this, SLOT(slot_get_2d_texture()));
-    connect(tool_->testButton, SIGNAL(clicked()), this, SLOT(slot_get_boundary()));
+    connect(tool_->testButton, SIGNAL(clicked()), this, SLOT(slot_select_point()));
 
     emit addToolbox(tr("MastersThesis"), tool_);
 
@@ -26,6 +27,19 @@ void MastersThesisPlugin::pluginsInitialized() {
     emit setTextureMode(texture_name(), "clamp=false,center=false,repeat=true,type=halfedgebased");
     emit switchTexture(texture_name());
     emit addPickMode("MastersThesisPlugin");
+}
+
+void MastersThesisPlugin::slot_select_point() {
+    if (tool_->testButton->isChecked()) {
+        // Picking mode of our plugin shall be activated
+        // set OpenFlipper's action mode to picking
+        PluginFunctions::actionMode(Viewer::PickingMode);
+        // Now activate our picking mode
+        PluginFunctions::pickMode("MastersThesisPlugin");
+    } else {
+        // Picking mode shall be deactivated
+        PluginFunctions::actionMode(Viewer::ExamineMode);
+    }
 }
 
 void MastersThesisPlugin::slot_get_boundary() {
@@ -50,25 +64,13 @@ void MastersThesisPlugin::slot_get_boundary() {
             dijkDistMesh.colorizeEdges(includedHEdges);
             // change layer of display
             // set draw mode
-
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
                     ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED);
 //            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
 //                    ACG::SceneGraph::DrawModes::NONE);
-//            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->....
+//            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->drawMode() //doesn't work
             emit updatedObject(tri_obj->id(), UPDATE_ALL);
         }
-    }
-
-    if (tool_->testButton->isChecked()) {
-        // Picking mode of our plugin shall be activated
-        // set OpenFlipper's action mode to picking
-        PluginFunctions::actionMode(Viewer::PickingMode);
-        // Now activate our picking mode
-        PluginFunctions::pickMode("MastersThesisPlugin");
-    } else {
-        // Picking mode shall be deactivated
-        PluginFunctions::actionMode(Viewer::ExamineMode);
     }
 
 }

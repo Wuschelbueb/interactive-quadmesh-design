@@ -14,7 +14,7 @@
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
-
+#include "myShaderNode.hh"
 #include "MastersThesisToolbar.hh"
 
 class MastersThesisPlugin
@@ -103,9 +103,7 @@ public :
     ~MastersThesisPlugin() {}
 
     MastersThesisPlugin() :
-            activeObject_(-1),
-            axis_x_(ACG::Vec3d(1.0, 0.0, 0.0)),
-            axis_y_(ACG::Vec3d(0.0, 1.0, 0.0)) {}
+            activeObject_(-1) {}
 
     QString name() { return QString("Simple plugin"); };
 
@@ -124,6 +122,11 @@ public slots:
     void slot_get_crossfield();
 
     /**
+     * select a point for crossfield
+     */
+     void slot_select_point();
+
+    /**
      * create global parametrization for selection.\n
      */
     void slot_get_global_param();
@@ -138,6 +141,7 @@ public slots:
 
 private:
     MastersThesisToolbar *tool_;
+    myShaderNode* myShaderNode_;
 
     //store selected vertices
     std::vector<int> heConstraints;
@@ -147,9 +151,6 @@ private:
 
     // Last picked object
     int activeObject_;
-    // Rotation axes
-    ACG::Vec3d axis_x_;
-    ACG::Vec3d axis_y_;
 
 };
 
