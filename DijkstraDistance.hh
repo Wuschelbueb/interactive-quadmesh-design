@@ -95,7 +95,7 @@ private:
     /**
      * colors DualGraph. There are 3 colors\n
      * 1 is for the border\n
-     * 2 is for the selection inside the border
+     * 2 is for the selection inside the border\n
      * 3 is for the selection outside of the border
      */
     void colorDualGraph();

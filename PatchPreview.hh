@@ -9,6 +9,7 @@
 #include <OpenMesh/Core/Geometry/EigenVectorT.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
 #include <MeshTools/MeshSelectionT.hh>
+#include <QtOpenGL>
 #include <functional>
 #include <stdexcept>
 #include <iostream>
