@@ -26,7 +26,9 @@ void MastersThesisPlugin::pluginsInitialized() {
     emit addTexture(texture_name(), "quadTexture.png", 2);
     emit setTextureMode(texture_name(), "clamp=false,center=false,repeat=true,type=halfedgebased");
     emit switchTexture(texture_name());
-    emit addPickMode("MastersThesisPlugin");
+    emit addPickMode("Crossfield Direction");
+    emit addPickMode("Vertex Selection");
+
 }
 
 void MastersThesisPlugin::slot_select_point() {
@@ -35,7 +37,7 @@ void MastersThesisPlugin::slot_select_point() {
         // set OpenFlipper's action mode to picking
         PluginFunctions::actionMode(Viewer::PickingMode);
         // Now activate our picking mode
-        PluginFunctions::pickMode("MastersThesisPlugin");
+        PluginFunctions::pickMode("Vertex Selection");
     } else {
         // Picking mode shall be deactivated
         PluginFunctions::actionMode(Viewer::ExamineMode);
@@ -57,6 +59,7 @@ void MastersThesisPlugin::slot_get_boundary() {
             // calculates the curvature of a patch as a preview
 //            PatchPreview patch{*trimesh};
 //            patch.getCurvature();
+
             dijkDistMesh.cleanMeshOfProps();
             heConstraints = dijkDistMesh.getHeConstraints();
             std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
@@ -65,7 +68,8 @@ void MastersThesisPlugin::slot_get_boundary() {
             // change layer of display
             // set draw mode
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
-                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED);
+                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
+                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
 //            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
 //                    ACG::SceneGraph::DrawModes::NONE);
 //            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->drawMode() //doesn't work
@@ -78,14 +82,18 @@ void MastersThesisPlugin::slot_get_boundary() {
 void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
     // Set button checked if pick mode is our
     // plugin's pick mode
-    tool_->testButton->setChecked(_mode == "MastersThesisPlugin");
+    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
+         o_it != PluginFunctions::objectsEnd(); ++o_it) {
+        TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
+        tri_obj->meshNode()->drawMode(ACG::SceneGraph::DrawModes::WIREFRAME
+                                      | ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED);
+        emit updatedObject(tri_obj->id(), UPDATE_COLOR);
+    }
+    tool_->testButton->setChecked(_mode == "Vertex Selection");
 }
 
 void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
-    //figure out where identification mode is
-    //todo use identification mode to extract (selected) point!
-    //todo create a vector between selected vertex and extracted point
-    if (PluginFunctions::pickMode() == "MastersThesisPlugin" &&
+    if (PluginFunctions::pickMode() == "Crossfield Direction" &&
         PluginFunctions::actionMode() == Viewer::PickingMode) {
         // If double click has been performed
         if (_event->type() == QEvent::MouseButtonDblClick) {
@@ -98,6 +106,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                 // Get picked object
                 if (PluginFunctions::getPickedObject(node_idx, object)) {
                     // Show small dialog window;
+                    //todo show new edge on mesh instead of window
                     QDialog *dlg = new QDialog;
                     QGridLayout *grid = new QGridLayout;
                     QLabel *label = new QLabel;
@@ -125,6 +134,54 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
         ACG::SceneGraph::MouseEventAction action(_event, PluginFunctions::viewerProperties().glState());
         PluginFunctions::traverse(action);
     }
+    // selects vertex which is at center of patch
+    if (PluginFunctions::pickMode() == ("Vertex Selection") &&
+        PluginFunctions::actionMode() == Viewer::PickingMode) {
+        // handle mouse events
+        if (_event->button() == Qt::LeftButton) {
+            size_t node_idx, target_idx;
+            ACG::Vec3d hit_point;
+            // pick vertices
+            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_VERTEX, _event->pos(),
+                                                node_idx, target_idx, &hit_point)) {
+                BaseObjectData *obj;
+                if (PluginFunctions::getPickedObject(node_idx, obj)) {
+                    // is picked object a triangle mesh?
+                    TriMeshObject *tri_obj = PluginFunctions::triMeshObject(obj);
+
+                    if (tri_obj) {
+                        auto targetedVh = tri_obj->mesh()->vertex_handle(target_idx);
+                        if (targetedVh == TriMesh::InvalidVertexHandle) {
+                            return;
+                        }
+                        // size of selection
+                        tri_obj->materialNode()->set_point_size(18);
+                        // updates vertex selection and deselects old one
+                        for (auto vh: tri_obj->mesh()->vertices()) {
+                            if (target_idx == vh.idx()) {
+                                tri_obj->mesh()->status(vh).set_selected(true);
+                                tri_obj->mesh()->set_color(vh, ACG::Vec4f(0, 1, 0, 1));
+                            } else {
+                                tri_obj->mesh()->status(vh).set_selected(false);
+                                tri_obj->mesh()->set_color(vh, ACG::Vec4f(1, 1, 1, 0));
+                            }
+                        }
+                        // visualization
+                        tri_obj->meshNode()->drawMode(ACG::SceneGraph::DrawModes::WIREFRAME
+                                                      | ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED |
+                                                      ACG::SceneGraph::DrawModes::POINTS_COLORED);
+
+                        tri_obj->materialNode()->enable_alpha_test(0.8);
+                        // updates color of vertices
+                        emit updatedObject(tri_obj->id(), UPDATE_COLOR);
+                        return;
+                    }
+                }
+            } // end of scenegraph face picking
+        }
+
+    }
+    emit updateView();
 }
 
 void MastersThesisPlugin::slot_get_crossfield() {
@@ -189,5 +246,6 @@ void MastersThesisPlugin::slot_get_2d_texture() {
 }
 
 #if QT_VERSION < 0x050000
-Q_EXPORT_PLUGIN2(mastersthesisplugin, MastersThesisPlugin);
+Q_EXPORT_PLUGIN2(mastersthesisplugin, MastersThesisPlugin
+);
 #endif

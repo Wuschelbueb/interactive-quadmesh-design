@@ -395,6 +395,7 @@ void DijkstraDistance::getSelectedVertices(std::vector<int> &constraints) {
         }
         for (int i: vertexSelection) {
             OpenMesh::VertexHandle vh = trimesh_.vertex_handle(i);
+            trimesh_.status(vh).set_selected(false);
             for (auto voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
                 if (!voh_it->is_boundary()) {
                     constraints.push_back(voh_it->idx());
