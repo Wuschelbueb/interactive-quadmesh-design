@@ -143,10 +143,11 @@ private:
     myShaderNode* myShaderNode_;
 
     //store selected vertices
-    std::vector<int> heConstraints;
-    std::vector<int> includedHEdges;
+    std::vector<int> originHalfedges;
+    std::vector<int> includedHalfedges;
     ACG::Vec3d clickedPoint;
-    ACG::Vec3d selectedVertex;
+    OpenMesh::VertexHandle selectedVertex;
+    ACG::Vec3d selectedVertexAsPoint;
     ACG::Vec3d refVector;
 
     // Last picked object

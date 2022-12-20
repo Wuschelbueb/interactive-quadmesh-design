@@ -68,7 +68,7 @@ public:
      * @param includedFaces is a vector which contains all the faces from dijkstra calculation
      * @return a vector of halfedges
      */
-    std::vector<int> getHeVectorOfSelection(const std::vector<int> &includedFaces);
+    std::vector<int> getAllHeFromFaces(const std::vector<int> &includedFaces);
 
     /**
      * colorizes edges which got included in dijkstra calculation
@@ -80,7 +80,7 @@ public:
      * get halfedges which got selected with the selection tool
      * @return a vector with halfedges
      */
-    std::vector<int> getHeConstraints();
+    std::vector<int> getHeFromVertex(OpenMesh::VertexHandle selectedVertex);
 
 private:
 
@@ -192,8 +192,6 @@ private:
     int getSmallestDistProp(const double refDist);
 
     TriMesh &trimesh_;
-
-    void getSelectedVertices(std::vector<int> &constraints);
 };
 
 

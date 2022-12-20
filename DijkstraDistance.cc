@@ -332,7 +332,7 @@ void DijkstraDistance::includeBoundaryFaces(std::vector<int> &includedFaces, con
 }
 
 std::vector<int>
-DijkstraDistance::getHeVectorOfSelection(const std::vector<int> &includedFaces) {
+DijkstraDistance::getAllHeFromFaces(const std::vector<int> &includedFaces) {
     std::vector<int> includedHe;
     for (int i: includedFaces) {
         OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
@@ -377,36 +377,15 @@ int DijkstraDistance::getSmallestDistProp(const double refDist) {
     return idx;
 }
 
-std::vector<int> DijkstraDistance::getHeConstraints() {
+std::vector<int> DijkstraDistance::getHeFromVertex(OpenMesh::VertexHandle selectedVertex) {
     std::vector<int> constraints;
-    getSelectedVertices(constraints);
+    trimesh_.status(selectedVertex).set_selected(false);
+    for (auto voh_it = trimesh_.voh_iter(selectedVertex); voh_it.is_valid(); ++voh_it) {
+        if (!voh_it->is_boundary()) {
+            constraints.push_back(voh_it->idx());
+        }
+    }
     return constraints;
-}
-
-
-void DijkstraDistance::getSelectedVertices(std::vector<int> &constraints) {
-    std::vector<int> vertexSelection;
-    try {
-        vertexSelection = MeshSelection::getVertexSelection(&trimesh_);
-        if (vertexSelection.empty()) {
-            throw std::invalid_argument("No Vertex selected! Select One!");
-        } else if (vertexSelection.size() > 1) {
-            throw std::invalid_argument("Select ONLY 1 vertex!");
-        }
-        for (int i: vertexSelection) {
-            OpenMesh::VertexHandle vh = trimesh_.vertex_handle(i);
-            trimesh_.status(vh).set_selected(false);
-            for (auto voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
-                if (!voh_it->is_boundary()) {
-                    constraints.push_back(voh_it->idx());
-                }
-            }
-        }
-    }
-        // todo: print to openflipper window
-    catch (const std::invalid_argument &e) {
-        std::cerr << e.what() << std::endl;
-    }
 }
 
 void DijkstraDistance::cleanMeshOfProps() {

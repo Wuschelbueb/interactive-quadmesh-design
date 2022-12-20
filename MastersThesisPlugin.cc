@@ -44,41 +44,6 @@ void MastersThesisPlugin::slot_select_point() {
     }
 }
 
-void MastersThesisPlugin::slot_get_boundary() {
-    const double refDist = tool_->dijkstra_distance->value();
-    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
-    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
-         o_it != PluginFunctions::objectsEnd(); ++o_it) {
-        // create mesh
-        TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
-        TriMesh *trimesh = tri_obj->mesh();
-        // different creation of mesh: TriMesh *trimesh = PluginFunctions::triMesh(*o_it);
-
-        if (trimesh) {
-            DijkstraDistance dijkDistMesh{*trimesh};
-            // calculates the curvature of a patch as a preview
-//            PatchPreview patch{*trimesh};
-//            patch.getCurvature();
-
-            dijkDistMesh.cleanMeshOfProps();
-            heConstraints = dijkDistMesh.getHeConstraints();
-            std::vector<int> includedNodes = dijkDistMesh.calculateDijkstra(heConstraints, refDist, inclBoundaryF);
-            includedHEdges = dijkDistMesh.getHeVectorOfSelection(includedNodes);
-            dijkDistMesh.colorizeEdges(includedHEdges);
-            // change layer of display
-            // set draw mode
-            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
-                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
-                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
-//            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
-//                    ACG::SceneGraph::DrawModes::NONE);
-//            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->drawMode() //doesn't work
-            emit updatedObject(tri_obj->id(), UPDATE_ALL);
-        }
-    }
-
-}
-
 void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
     // change visualization of 3D object
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
@@ -111,7 +76,8 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
 
                     if (tri_obj) {
                         auto targetedVh = tri_obj->mesh()->vertex_handle(target_idx);
-                        selectedVertex = tri_obj->mesh()->point(targetedVh);
+                        selectedVertex = targetedVh;
+                        selectedVertexAsPoint = tri_obj->mesh()->point(targetedVh);
                         if (targetedVh == TriMesh::InvalidVertexHandle) {
                             return;
                         }
@@ -119,7 +85,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                         tri_obj->materialNode()->set_point_size(18);
                         // updates vertex selection and deselects old one
                         for (auto vh: tri_obj->mesh()->vertices()) {
-                            if (target_idx == vh.idx()) {
+                            if ((int) target_idx == vh.idx()) {
                                 tri_obj->mesh()->status(vh).set_selected(true);
                                 tri_obj->mesh()->set_color(vh, ACG::Vec4f(0, 1, 0, 1));
                             } else {
@@ -166,7 +132,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                             lineNode->clear_points();
                             lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertex, hitPoint);
+                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPoint = hitPoint;
                         } else {
@@ -174,7 +140,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                             lineNode->clear_points();
                             lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertex, hitPoint);
+                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPoint = hitPoint;
                         }
@@ -185,14 +151,48 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
             }
             return;
         }
-
         // Continue traversing scene graph
         ACG::SceneGraph::MouseEventAction action(_event, PluginFunctions::viewerProperties().glState());
         PluginFunctions::traverse(action);
-
     }
     emit updateView();
 }
+
+
+void MastersThesisPlugin::slot_get_boundary() {
+    const double refDist = tool_->dijkstra_distance->value();
+    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
+    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
+         o_it != PluginFunctions::objectsEnd(); ++o_it) {
+        // create mesh
+        TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
+        TriMesh *trimesh = tri_obj->mesh();
+        // different creation of mesh: TriMesh *trimesh = PluginFunctions::triMesh(*o_it);
+        PluginFunctions::actionMode(Viewer::ExamineMode);
+
+        if (trimesh) {
+            DijkstraDistance dijkDistMesh{*trimesh};
+            // calculates the curvature of a patch as a preview
+//            PatchPreview patch{*trimesh};
+//            patch.getCurvature();
+
+            dijkDistMesh.cleanMeshOfProps();
+            originHalfedges = dijkDistMesh.getHeFromVertex(selectedVertex);
+            std::vector<int> includedFaces = dijkDistMesh.calculateDijkstra(originHalfedges, refDist, inclBoundaryF);
+            includedHalfedges = dijkDistMesh.getAllHeFromFaces(includedFaces);
+            dijkDistMesh.colorizeEdges(includedHalfedges);
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
+                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
+//            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+//                    ACG::SceneGraph::DrawModes::NONE);
+//            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->drawMode() //doesn't work
+            emit updatedObject(tri_obj->id(), UPDATE_ALL);
+        }
+    }
+
+}
+
 
 void MastersThesisPlugin::slot_get_crossfield() {
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
@@ -201,10 +201,12 @@ void MastersThesisPlugin::slot_get_crossfield() {
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
         if (trimesh) {
-            refVector = clickedPoint - selectedVertex;
-            Crossfield mesh{*trimesh, includedHEdges, heConstraints, refVector};
+            refVector = clickedPoint - selectedVertexAsPoint;
+            Crossfield mesh{*trimesh, includedHalfedges, originHalfedges, refVector};
             mesh.getCrossfield();
-            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
+                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
             emit updatedObject(o_it->id(), UPDATE_ALL);
         }
     }
