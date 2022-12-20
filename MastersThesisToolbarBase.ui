@@ -114,45 +114,24 @@
          </item>
         </layout>
        </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QPushButton" name="testButton">
+        <widget class="QPushButton" name="selectionButton">
          <property name="text">
-          <string>test</string>
+          <string>Selection</string>
          </property>
          <property name="checkable">
           <bool>true</bool>
          </property>
         </widget>
        </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QPushButton" name="get_selection">
+        <widget class="QPushButton" name="calculationButton">
          <property name="text">
-          <string>Dijkstra</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="getDualGraph">
-         <property name="text">
-          <string>Dual Graph</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="getGlobalParam">
-         <property name="text">
-          <string>Global Param</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="get2DTexture">
-         <property name="text">
-          <string>2D Texture</string>
+          <string>Calculation</string>
          </property>
         </widget>
        </item>

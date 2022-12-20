@@ -113,45 +113,31 @@ public slots:
     /**
      * get first selection with the help of dijkstra algorithm.\n
      */
-    void slot_get_boundary();
-
-    /**
-     * get crossfield for each triangle.\n
-     */
-    void slot_get_crossfield();
+    void slot_calculate_quad_mesh();
 
     /**
      * select a point for crossfield
      */
      void slot_select_point();
 
-    /**
-     * create global parametrization for selection.\n
-     */
-    void slot_get_global_param();
-
-    /**
-     * put a quad mesh texture over tri-mesh.\n
-     */
-    void slot_get_2d_texture();
-
     QString version() { return QString("1.0"); };
 
 
 private:
     MastersThesisToolbar *tool_;
-    myShaderNode* myShaderNode_;
 
-    //store selected vertices
+    //store outgoing he of selected Vertex
     std::vector<int> originHalfedges;
+    // vector based on included faces
     std::vector<int> includedHalfedges;
+    // point which gives direction of crossfield
     ACG::Vec3d clickedPoint;
+    // selected starting vertex
     OpenMesh::VertexHandle selectedVertex;
+    // point of selectedVertex
     ACG::Vec3d selectedVertexAsPoint;
+    // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVector;
-
-    // Last picked object
-    int activeObject_;
 
 };
 
