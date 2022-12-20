@@ -5,6 +5,7 @@
 #include "Get2DTexture.h"
 #include "PatchPreview.hh"
 #include "myShaderNode.hh"
+#include "ACG/Scenegraph/LineNode.hh"
 
 
 void MastersThesisPlugin::initializePlugin() {
@@ -26,7 +27,6 @@ void MastersThesisPlugin::pluginsInitialized() {
     emit addTexture(texture_name(), "quadTexture.png", 2);
     emit setTextureMode(texture_name(), "clamp=false,center=false,repeat=true,type=halfedgebased");
     emit switchTexture(texture_name());
-    emit addPickMode("Crossfield Direction");
     emit addPickMode("Vertex Selection");
 
 }
@@ -80,8 +80,7 @@ void MastersThesisPlugin::slot_get_boundary() {
 }
 
 void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
-    // Set button checked if pick mode is our
-    // plugin's pick mode
+    // change visualization of 3D object
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
@@ -89,51 +88,12 @@ void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
                                       | ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED);
         emit updatedObject(tri_obj->id(), UPDATE_COLOR);
     }
+    // Set button checked if pick mode is our
+    // plugin's pick mode
     tool_->testButton->setChecked(_mode == "Vertex Selection");
 }
 
 void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
-    if (PluginFunctions::pickMode() == "Crossfield Direction" &&
-        PluginFunctions::actionMode() == Viewer::PickingMode) {
-        // If double click has been performed
-        if (_event->type() == QEvent::MouseButtonDblClick) {
-            size_t node_idx, target_idx;
-            OpenMesh::Vec3d hitPoint;
-            // Get picked object's identifier
-            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_ANYTHING, _event->pos(), node_idx,
-                                                target_idx, &hitPoint)) {
-                BaseObjectData *object;
-                // Get picked object
-                if (PluginFunctions::getPickedObject(node_idx, object)) {
-                    // Show small dialog window;
-                    //todo show new edge on mesh instead of window
-                    QDialog *dlg = new QDialog;
-                    QGridLayout *grid = new QGridLayout;
-                    QLabel *label = new QLabel;
-                    QString str = QString("Point: [");
-                    str += QString::number(hitPoint[0]);
-                    str += QString(", ");
-                    str += QString::number(hitPoint[1]);
-                    str += QString(", ");
-                    str += QString::number(hitPoint[2]);
-                    str += QString("]");
-                    clickedPoint = hitPoint;
-                    label->setText(str);
-                    grid->addWidget(label, 0, 0);
-                    dlg->setLayout(grid);
-                    dlg->show();
-                    // Set last selected object
-                    activeObject_ = node_idx;
-                } else {
-                    emit log(LOGINFO, "Picking failed");
-                }
-            }
-            return;
-        }
-        // Continue traversing scene graph
-        ACG::SceneGraph::MouseEventAction action(_event, PluginFunctions::viewerProperties().glState());
-        PluginFunctions::traverse(action);
-    }
     // selects vertex which is at center of patch
     if (PluginFunctions::pickMode() == ("Vertex Selection") &&
         PluginFunctions::actionMode() == Viewer::PickingMode) {
@@ -151,6 +111,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
 
                     if (tri_obj) {
                         auto targetedVh = tri_obj->mesh()->vertex_handle(target_idx);
+                        selectedVertex = tri_obj->mesh()->point(targetedVh);
                         if (targetedVh == TriMesh::InvalidVertexHandle) {
                             return;
                         }
@@ -177,8 +138,57 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                         return;
                     }
                 }
-            } // end of scenegraph face picking
+            }
         }
+        // If double click has been performed
+        if (_event->type() == QEvent::MouseButtonDblClick) {
+            size_t node_idx, target_idx;
+            OpenMesh::Vec3d hitPoint;
+            // Get picked object's identifier
+            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_ANYTHING, _event->pos(), node_idx,
+                                                target_idx, &hitPoint)) {
+                BaseObjectData *object;
+                // Get picked object
+                if (PluginFunctions::getPickedObject(node_idx, object)) {
+                    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
+                         o_it != PluginFunctions::objectsEnd(); ++o_it) {
+                        auto tri_obj = PluginFunctions::triMeshObject(*o_it);
+                        auto trimesh = tri_obj->mesh();
+                        ACG::SceneGraph::LineNode *lineNode;
+                        //create line node
+                        if (!tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
+                            lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
+                                                                     tri_obj->manipulatorNode(),
+                                                                     "Cross field direction");
+                            tri_obj->addAdditionalNode(lineNode, name(), "Cross field direction");
+
+                            //creates the line
+                            lineNode->clear_points();
+                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
+                            lineNode->set_line_width(3);
+                            lineNode->add_line(selectedVertex, hitPoint);
+                            lineNode->alwaysOnTop() = true;
+                            clickedPoint = hitPoint;
+                        } else {
+                            //creates the line
+                            lineNode->clear_points();
+                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
+                            lineNode->set_line_width(3);
+                            lineNode->add_line(selectedVertex, hitPoint);
+                            lineNode->alwaysOnTop() = true;
+                            clickedPoint = hitPoint;
+                        }
+                    }
+                } else {
+                    emit log(LOGINFO, "Picking failed");
+                }
+            }
+            return;
+        }
+
+        // Continue traversing scene graph
+        ACG::SceneGraph::MouseEventAction action(_event, PluginFunctions::viewerProperties().glState());
+        PluginFunctions::traverse(action);
 
     }
     emit updateView();
@@ -191,9 +201,7 @@ void MastersThesisPlugin::slot_get_crossfield() {
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
         if (trimesh) {
-            std::vector<int> vertices = MeshSelection::getVertexSelection(trimesh);
-            OpenMesh::VertexHandle vh = trimesh->vertex_handle(vertices[0]);
-            refVector = clickedPoint - trimesh->point(vh);
+            refVector = clickedPoint - selectedVertex;
             Crossfield mesh{*trimesh, includedHEdges, heConstraints, refVector};
             mesh.getCrossfield();
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(ACG::SceneGraph::DrawModes::EDGES_COLORED);
@@ -209,6 +217,14 @@ void MastersThesisPlugin::slot_get_global_param() {
         // create mesh
         TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
         TriMesh *trimesh = tri_obj->mesh();
+        tool_->testButton->setChecked(false);
+        ACG::SceneGraph::LineNode *lineNode;
+        if (tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
+            lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
+                                                     tri_obj->manipulatorNode(),
+                                                     "Cross field direction");
+            tri_obj->removeAdditionalNode(lineNode, name(), "Cross field direction");
+        }
         if (trimesh) {
             GlobalParametrization mesh{*trimesh, hValue};
             mesh.getGlobalParam();

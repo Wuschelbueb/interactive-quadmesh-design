@@ -10,7 +10,6 @@
 #include <OpenFlipper/BasePlugin/LoggingInterface.hh>
 #include <OpenFlipper/BasePlugin/LoadSaveInterface.hh>
 #include <OpenFlipper/BasePlugin/TextureInterface.hh>
-
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
@@ -147,6 +146,7 @@ private:
     std::vector<int> heConstraints;
     std::vector<int> includedHEdges;
     ACG::Vec3d clickedPoint;
+    ACG::Vec3d selectedVertex;
     ACG::Vec3d refVector;
 
     // Last picked object
