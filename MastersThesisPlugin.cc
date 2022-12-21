@@ -21,9 +21,9 @@ void MastersThesisPlugin::initializePlugin() {
 }
 
 void MastersThesisPlugin::pluginsInitialized() {
-    emit addTexture("quadTextr", "quadTexture.png", 2);
-    emit setTextureMode("quadTextr", "clamp=false,center=false,repeat=true,type=halfedgebased");
-
+    emit addTexture(texture_name(), "quadTexture.png", 2);
+    emit setTextureMode(texture_name(), "clamp=false,center=false,repeat=true,type=halfedgebased");
+    emit switchTexture(texture_name());
     emit addPickMode("Vertex Selection");
 
 }
@@ -53,14 +53,13 @@ void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
     }
     // Set button checked if pick mode is our
     // plugin's pick mode
-//    tool_->selectionButton->setChecked(_mode == "Vertex Selection");
+    tool_->selectionButton->setChecked(_mode == "Vertex Selection");
 }
 
 void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
     // selects vertex which is at center of patch
     if (PluginFunctions::pickMode() == ("Vertex Selection") &&
-        PluginFunctions::actionMode() == Viewer::PickingMode &&
-        tool_->selectionButton->isChecked()) {
+        PluginFunctions::actionMode() == Viewer::PickingMode) {
         // handle mouse events
         if (_event->button() == Qt::LeftButton) {
             size_t node_idx, target_idx;
@@ -120,8 +119,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
                         auto tri_obj = PluginFunctions::triMeshObject(*o_it);
                         auto trimesh = tri_obj->mesh();
                         ACG::SceneGraph::LineNode *lineNode;
-                        //create line node    connect(tool_->calculationButton, SIGNAL(clicked()), this, SLOT(slot_calculate_quad_mesh()));
-
+                        //create line node
                         if (!tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
                             lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
                                                                      tri_obj->manipulatorNode(),
@@ -158,29 +156,6 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
     emit updateView();
 }
 
-void MastersThesisPlugin::slotUpdateTexture(QString _textureName, int _identifier) {
-    if (_textureName != "quadTextr") {
-        return;
-    }
-
-    BaseObjectData *object;
-    if (!PluginFunctions::getObject(_identifier, object)) {
-        return;
-    }
-
-    if (object->dataType(DATA_TRIANGLE_MESH)) {
-        TriMesh *mesh = PluginFunctions::triMesh(object);
-        if (_textureName == "quadTextr") {
-            emit updatedTextures("quadTextr", _identifier);
-        }
-    }
-    if (object->dataType(DATA_POLY_MESH)) {
-        TriMesh *mesh = PluginFunctions::triMesh(object);
-        if (_textureName == "quadTextr") {
-            emit updatedTextures("quadTextr", _identifier);
-        }
-    }
-}
 
 void MastersThesisPlugin::slot_calculate_quad_mesh() {
     const double refDist = tool_->dijkstra_distance->value();
@@ -194,6 +169,7 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
         // different creation of mesh: TriMesh *trimesh = PluginFunctions::triMesh(*o_it);
         PluginFunctions::actionMode(Viewer::ExamineMode);
         auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(*trimesh, "quadTextr");
+        const char *propertyName = quadTextr.getName().c_str();
         refVector = clickedPoint - selectedVertexAsPoint;
 
         if (trimesh) {
@@ -210,10 +186,14 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
                     ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
                     ACG::SceneGraph::DrawModes::POINTS_COLORED);
+//            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+//                    ACG::SceneGraph::DrawModes::NONE);
+//            PluginFunctions::triMeshObject(*o_it)->myShaderNode()->drawMode() //doesn't work
             emit updatedObject(tri_obj->id(), UPDATE_ALL);
 
             Crossfield mesh{*trimesh, includedHalfedges, originHalfedges, refVector};
             mesh.getCrossfield();
+
             tool_->selectionButton->setChecked(false);
             ACG::SceneGraph::LineNode *lineNode;
             if (tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
@@ -230,13 +210,15 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
             twoDimMesh.initProperty();
             for (auto he: trimesh->halfedges()) {
                 if (!he.is_boundary()) {
-                    twoDimMesh.setQuadTexHeProperty(he);
+                    twoDimMesh.get2DTexture(he);
                 }
             }
-            // switch to the right texture
-            emit switchTexture("quadTextr", o_it->id());
-            // select texture from menu
-            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED, PluginFunctions::ALL_VIEWERS);
+            //todo doesn't work, fix
+            emit switchTexture(propertyName, o_it->id());
+            emit updatedTextures(propertyName, o_it->id());
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED | ACG::SceneGraph::DrawModes::POINTS_COLORED);
+            emit updatedObject(o_it->id(), UPDATE_ALL);
         }
     }
 }

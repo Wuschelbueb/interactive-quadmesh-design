@@ -62,11 +62,23 @@ signals:
     void createBackup(int _objectid, QString _name, UpdateType _type = UPDATE_ALL);
     void updatedObject(int _id, const UpdateType &_type);
 
-    // Texture Interface
-    void addTexture( QString _textureName , QString _filename , uint dimension );
-    void updatedTextures( QString , int );
-    void setTextureMode(QString _textureName ,QString _mode);
+    // Texture interface
+    // tell OpenFlipper about the texture we want to use
+    void addTexture(QString _textureName, QString _filename, uint dimension);
+
+    // tell OpenFlipper that our texture (coordinates) have changed
+    void updatedTextures(QString, int);
+    void updatedTexture(QString);
+
+    // tell OpenFlipper which texture settings we want to use
+    void setTextureMode(QString _textureName, QString _mode);
+
+    // tell OpenFlipper to use the texture with name _textureName
     void switchTexture(QString _textureName);
+
+    /** \brief emit this signal if you want to switch the texture of a specific object
+     * This signal can be called from any thread.\n
+     */
     void switchTexture(QString _textureName, int _id);
 
 
@@ -76,14 +88,13 @@ private slots:
     void initializePlugin();
     void pluginsInitialized();
 
-    // MouseInterface
+    //MouseInterface
     void slotMouseEvent(QMouseEvent *_event);
-
-    // Update texture
-    void slotUpdateTexture( QString _textureName , int _identifier );
 
     //PickingInterface
     void slotPickModeChanged(const std::string &_mode);
+
+    const char *texture_name() const { return "quadTextr"; }
 
 
 public :
@@ -113,8 +124,8 @@ public slots:
 
 
 private:
-    // initialize toolbar plugin
     MastersThesisToolbar *tool_;
+
     //store outgoing he of selected Vertex
     std::vector<int> originHalfedges;
     // vector based on included faces
@@ -127,9 +138,6 @@ private:
     ACG::Vec3d selectedVertexAsPoint;
     // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVector;
-
-    // Last picked object
-    int activeObject_;
 
 };
 
