@@ -57,7 +57,7 @@ public:
      * @param u u parameter of u,v system
      * @param v v parameter of u,v system
      */
-    void get2DTexture(OpenMesh::SmartHalfedgeHandle he);
+    void setQuadTexHeProperty(OpenMesh::SmartHalfedgeHandle he);
 
 
 private:

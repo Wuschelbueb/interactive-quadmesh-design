@@ -388,8 +388,8 @@ void Crossfield::getStatusNeigh(const OpenMesh::FaceHandle fh, const OpenMesh::F
     double kappa = DBL_MAX;
     std::pair<int, int> commonEdge = {INT_MAX, INT_MAX};
 //    std::cout << "\t\tin getStatusNeigh function" << std::endl;
-    // neighbour needs to be in faces
-    //trimesh_.status(fh_neigh).tagged()
+//    neighbour needs to be in faces
+//    trimesh_.status(fh_neigh).tagged()
     if (faceSel[fh_neigh]) {
         // get index of ref edges
         int refEdgeMain = referenceHeIdx[fh];

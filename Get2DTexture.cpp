@@ -11,7 +11,7 @@ void Get2DTexture::initProperty() {
     }
 }
 
-void Get2DTexture::get2DTexture(OpenMesh::SmartHalfedgeHandle he) {
+void Get2DTexture::setQuadTexHeProperty(OpenMesh::SmartHalfedgeHandle he) {
     trimesh_.request_halfedge_texcoords2D();
     auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
@@ -23,8 +23,6 @@ void Get2DTexture::get2DTexture(OpenMesh::SmartHalfedgeHandle he) {
         pos = getPositionConstraintRow(vh, cutGraphFZone[he.face()]);
     }
     quadTextr[he] = solCoordSysUV[vh][pos];
-    //trimesh_.texcoord2D(he); <- use this?
-
 }
 
 int Get2DTexture::getPositionConstraintRow(OpenMesh::SmartVertexHandle &vh, int cutGraphZone) {
