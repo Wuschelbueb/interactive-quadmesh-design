@@ -389,9 +389,9 @@ std::vector<int> DijkstraDistance::getHeFromVertex(OpenMesh::VertexHandle select
 }
 
 void DijkstraDistance::cleanMeshOfProps() {
-//    auto solCoordSysUV = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV");
-    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, std::vector<Point>>(trimesh_, "solCoordSysUV")) {
-        auto propH = OpenMesh::VProp<std::vector<Point>>(trimesh_, "solCoordSysUV").getRawProperty();
+//    auto solCoordSysUV = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV");
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV")) {
+        auto propH = OpenMesh::VProp<std::vector<OpenMesh::Vec2d>>(trimesh_, "solCoordSysUV").getRawProperty();
         trimesh_.remove_property(propH);
     }
     //    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
@@ -515,8 +515,8 @@ void DijkstraDistance::cleanMeshOfProps() {
         trimesh_.remove_property(propH);
     }
 //    auto vertexPosUi = OpenMesh::VProp<int>(trimesh_, "vertexPosUi");
-    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, double>(trimesh_, "vertexPosUi")) {
-        auto propH = OpenMesh::VProp<double>(trimesh_, "vertexPosUi").getRawProperty();
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexPosUi")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexPosUi").getRawProperty();
         trimesh_.remove_property(propH);
     }
 //    auto vertexPosVi = OpenMesh::VProp<int>(trimesh_, "vertexPosVi");
@@ -527,6 +527,13 @@ void DijkstraDistance::cleanMeshOfProps() {
     if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2d>(trimesh_, "quadTextr")) {
         auto propH = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr").getRawProperty();
         trimesh_.remove_property(propH);
+    }
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2f>(trimesh_, "h:texcoords2D")) {
+        auto texCoords = OpenMesh::HProp<OpenMesh::Vec2f>(trimesh_, "h:texcoords2D");
+        std::cout << "hello from h:texcoords2d";
+        for (OpenMesh::HalfedgeHandle he: trimesh_.halfedges()) {
+            texCoords[he] = {0, 0};
+        }
     }
     trimesh_.garbage_collection();
 }
