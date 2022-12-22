@@ -528,6 +528,10 @@ void DijkstraDistance::cleanMeshOfProps() {
         auto propH = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr").getRawProperty();
         trimesh_.remove_property(propH);
     }
+    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, bool>(trimesh_, "boundaryHe")) {
+        auto propH = OpenMesh::HProp<bool>(trimesh_, "boundaryHe").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
     if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2f>(trimesh_, "h:texcoords2D")) {
         auto texCoords = OpenMesh::HProp<OpenMesh::Vec2f>(trimesh_, "h:texcoords2D");
         std::cout << "hello from h:texcoords2d";
