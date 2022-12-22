@@ -104,6 +104,12 @@ public slots:
      */
     void slot_calculate_quad_mesh();
 
+
+    /**
+     * get first selection with the help of dijkstra algorithm.\n
+     */
+    void slot_get_preview_dijkstra();
+
     /**
      * select a point for crossfield
      */

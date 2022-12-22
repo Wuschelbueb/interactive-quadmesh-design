@@ -15,6 +15,7 @@ void MastersThesisPlugin::initializePlugin() {
 
     connect(tool_->calculationButton, SIGNAL(clicked()), this, SLOT(slot_calculate_quad_mesh()));
     connect(tool_->selectionButton, SIGNAL(clicked()), this, SLOT(slot_select_point()));
+    connect(tool_->previewButton, SIGNAL(clicked()), this, SLOT(slot_get_preview_dijkstra()));
 
     emit addToolbox(tr("MastersThesis"), tool_);
 
@@ -182,9 +183,38 @@ void MastersThesisPlugin::slotUpdateTexture(QString _textureName, int _identifie
     }
 }
 
-void MastersThesisPlugin::slot_calculate_quad_mesh() {
+void MastersThesisPlugin::slot_get_preview_dijkstra() {
     const double refDist = tool_->dijkstra_distance->value();
-    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
+//    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
+    const bool inclBoundaryF = false;
+    PluginFunctions::actionMode(Viewer::ExamineMode);
+    tool_->selectionButton->setChecked(false);
+    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
+         o_it != PluginFunctions::objectsEnd(); ++o_it) {
+        // create mesh
+        TriMeshObject *tri_obj = PluginFunctions::triMeshObject(*o_it);
+        TriMesh *trimesh = tri_obj->mesh();
+        // different creation of mesh: TriMesh *trimesh = PluginFunctions::triMesh(*o_it);
+
+        if (trimesh) {
+            DijkstraDistance dijkDistMesh{*trimesh};
+            // calculates the curvature of a patch as a preview
+//            PatchPreview patch{*trimesh};
+//            patch.getCurvature();
+            dijkDistMesh.cleanMeshOfProps();
+            originHalfedges = dijkDistMesh.getHeFromVertex(selectedVertex);
+            std::vector<int> includedFaces = dijkDistMesh.calculateDijkstra(originHalfedges, refDist, inclBoundaryF);
+            includedHalfedges = dijkDistMesh.getAllHeFromFaces(includedFaces);
+            dijkDistMesh.colorizeEdges(includedHalfedges);
+            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
+                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
+                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
+            emit updatedObject(tri_obj->id(), UPDATE_ALL);
+        }
+    }
+}
+
+void MastersThesisPlugin::slot_calculate_quad_mesh() {
     double hValue = tool_->hValue->value();
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
@@ -197,24 +227,8 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
         refVector = clickedPoint - selectedVertexAsPoint;
 
         if (trimesh) {
-            DijkstraDistance dijkDistMesh{*trimesh};
-            // calculates the curvature of a patch as a preview
-//            PatchPreview patch{*trimesh};
-//            patch.getCurvature();
-
-            dijkDistMesh.cleanMeshOfProps();
-            originHalfedges = dijkDistMesh.getHeFromVertex(selectedVertex);
-            std::vector<int> includedFaces = dijkDistMesh.calculateDijkstra(originHalfedges, refDist, inclBoundaryF);
-            includedHalfedges = dijkDistMesh.getAllHeFromFaces(includedFaces);
-            dijkDistMesh.colorizeEdges(includedHalfedges);
-            PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
-                    ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED | ACG::SceneGraph::DrawModes::EDGES_COLORED |
-                    ACG::SceneGraph::DrawModes::POINTS_COLORED);
-            emit updatedObject(tri_obj->id(), UPDATE_ALL);
-
-            Crossfield mesh{*trimesh, includedHalfedges, originHalfedges, refVector};
-            mesh.getCrossfield();
-            tool_->selectionButton->setChecked(false);
+            Crossfield crossFieldMesh{*trimesh, includedHalfedges, originHalfedges, refVector};
+            crossFieldMesh.getCrossfield();
             ACG::SceneGraph::LineNode *lineNode;
             if (tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
                 lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
@@ -236,7 +250,8 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
             // switch to the right texture
             emit switchTexture("quadTextr", o_it->id());
             // select texture from menu
-            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED, PluginFunctions::ALL_VIEWERS);
+            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED,
+                                       PluginFunctions::ALL_VIEWERS);
         }
     }
 }

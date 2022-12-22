@@ -47,13 +47,6 @@
          </property>
         </widget>
        </item>
-       <item>
-        <widget class="QCheckBox" name="include_boundary_faces">
-         <property name="text">
-          <string>incl. Bound. Faces</string>
-         </property>
-        </widget>
-       </item>
       </layout>
      </item>
      <item>
@@ -121,7 +114,7 @@
        <item>
         <widget class="QPushButton" name="selectionButton">
          <property name="text">
-          <string>Selection</string>
+          <string>Select</string>
          </property>
          <property name="checkable">
           <bool>true</bool>
@@ -129,9 +122,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="previewButton">
+         <property name="text">
+          <string>Preview</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="calculationButton">
          <property name="text">
-          <string>Calculation</string>
+          <string>Calculate</string>
          </property>
         </widget>
        </item>
