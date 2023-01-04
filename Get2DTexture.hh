@@ -2,8 +2,8 @@
 // Created by wuschelbueb on 27.06.22.
 //
 
-#ifndef OPENFLIPPER_GET2DTEXTURE_H
-#define OPENFLIPPER_GET2DTEXTURE_H
+#ifndef OPENFLIPPER_GET2DTEXTURE_HH
+#define OPENFLIPPER_GET2DTEXTURE_HH
 
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
@@ -21,7 +21,6 @@
 #include <vector>
 #include <float.h>
 #include <cmath>
-#include "DijkstraDistance.hh"
 
 
 class Get2DTexture {
@@ -77,4 +76,4 @@ private:
 };
 
 
-#endif //OPENFLIPPER_GET2DTEXTURE_H
+#endif //OPENFLIPPER_GET2DTEXTURE_HH

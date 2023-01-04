@@ -2,7 +2,7 @@
 // Created by wuschelbueb on 27.06.22.
 //
 
-#include "Get2DTexture.h"
+#include "Get2DTexture.hh"
 
 void Get2DTexture::initProperty() {
     auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr");

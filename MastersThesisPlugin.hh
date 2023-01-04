@@ -13,7 +13,6 @@
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
-#include "myShaderNode.hh"
 #include "MastersThesisToolbar.hh"
 
 class MastersThesisPlugin
