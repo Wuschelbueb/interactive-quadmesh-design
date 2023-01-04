@@ -532,13 +532,11 @@ void DijkstraDistance::cleanMeshOfProps() {
         auto propH = OpenMesh::HProp<bool>(trimesh_, "boundaryHe").getRawProperty();
         trimesh_.remove_property(propH);
     }
-    if (OpenMesh::hasProperty<OpenMesh::HalfedgeHandle, OpenMesh::Vec2f>(trimesh_, "h:texcoords2D")) {
-        auto texCoords = OpenMesh::HProp<OpenMesh::Vec2f>(trimesh_, "h:texcoords2D");
-        std::cout << "hello from h:texcoords2d";
-        for (OpenMesh::HalfedgeHandle he: trimesh_.halfedges()) {
-            texCoords[he] = {0, 0};
-        }
+    trimesh_.request_halfedge_texcoords2D();
+    for (auto he: trimesh_.halfedges()) {
+        trimesh_.set_texcoord2D(he, {0.f, 0.f});
     }
+
     trimesh_.garbage_collection();
 }
 
