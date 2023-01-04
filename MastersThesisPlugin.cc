@@ -2,9 +2,9 @@
 #include "DijkstraDistance.hh"
 #include "Crossfield.hh"
 #include "GlobalParametrization.hh"
-#include "Get2DTexture.h"
+#include "Get2DTexture.hh"
 #include "PatchPreview.hh"
-#include "myShaderNode.hh"
+#include "ExportObjFile.hh"
 #include "ACG/Scenegraph/LineNode.hh"
 
 
@@ -24,7 +24,6 @@ void MastersThesisPlugin::initializePlugin() {
 void MastersThesisPlugin::pluginsInitialized() {
     emit addTexture("quadTextr", "quadTexture.png", 2);
     emit setTextureMode("quadTextr", "clamp=false,center=false,repeat=true,type=halfedgebased");
-
     emit addPickMode("Vertex Selection");
 
 }
@@ -224,6 +223,7 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
         // different creation of mesh: TriMesh *trimesh = PluginFunctions::triMesh(*o_it);
         PluginFunctions::actionMode(Viewer::ExamineMode);
         auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(*trimesh, "quadTextr");
+        auto heColor = OpenMesh::HProp<int>(*trimesh, "heColor");
         refVector = clickedPoint - selectedVertexAsPoint;
 
         if (trimesh) {
@@ -243,15 +243,16 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
             Get2DTexture twoDimMesh{*trimesh};
             twoDimMesh.initProperty();
             for (auto he: trimesh->halfedges()) {
-                if (!he.is_boundary()) {
+                if (!he.is_boundary() && heColor[he] != 1) {
                     twoDimMesh.setQuadTexHeProperty(he);
                 }
             }
+            ExportObjFile exportMesh{*trimesh, selectedVertex};
+
             // switch to the right texture
             emit switchTexture("quadTextr", o_it->id());
             // select texture from menu
-            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED,
-                                       PluginFunctions::ALL_VIEWERS);
+            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED, PluginFunctions::ALL_VIEWERS);
         }
     }
 }
