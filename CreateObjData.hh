@@ -2,8 +2,8 @@
 // Created by wuschelbueb on 04.01.23.
 //
 
-#ifndef OPENFLIPPER_EXPORTOBJFILE_HH
-#define OPENFLIPPER_EXPORTOBJFILE_HH
+#ifndef OPENFLIPPER_CREATEOBJDATA_HH
+#define OPENFLIPPER_CREATEOBJDATA_HH
 
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
@@ -22,22 +22,33 @@
 #include <float.h>
 #include <cmath>
 
-class ExportObjFile {
+class CreateObjData {
 public:
-    ExportObjFile(TriMesh &trimesh, OpenMesh::VertexHandle &selectedVertex)
-        : trimesh_{trimesh}, centerVertex{selectedVertex} {
-        getFile();
+    CreateObjData(TriMesh &trimesh, OpenMesh::VertexHandle &selectedVertex)
+            : trimesh_{trimesh}, centerVertex{selectedVertex} {
+        getStream();
     }
+
+    void getStream(std::stringstream &data) {
+        data << objData.rdbuf();
+        objData.str(std::string());
+    }
+
 private:
     TriMesh &trimesh_;
     OpenMesh::VertexHandle centerVertex;
     double lambda = 0;
-    void getFile();
-    void createFile();
+    std::stringstream objData;
+
+    void getStream();
+
+    void createData();
+
     double transformToTexCoord(double value);
+
     void getLambda();
 
 };
 
 
-#endif //OPENFLIPPER_EXPORTOBJFILE_HH
+#endif //OPENFLIPPER_CREATEOBJDATA_HH

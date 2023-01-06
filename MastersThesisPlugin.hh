@@ -113,6 +113,10 @@ public slots:
      * select a point for crossfield
      */
      void slot_select_point();
+    /**
+     * open dialog to save obj file
+     */
+    void slot_save_object_file();
 
     QString version() { return QString("1.0"); };
 
@@ -132,10 +136,11 @@ private:
     ACG::Vec3d selectedVertexAsPoint;
     // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVector;
+    // stringstream containing .obj data
+    std::stringstream objData;
 
     // Last picked object
     int activeObject_;
-
 };
 
 #endif //OPENFLIPPER_MASTERSTHESISPLUGIN_H

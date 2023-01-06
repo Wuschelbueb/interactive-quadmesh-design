@@ -4,7 +4,7 @@
 #include "GlobalParametrization.hh"
 #include "Get2DTexture.hh"
 #include "PatchPreview.hh"
-#include "ExportObjFile.hh"
+#include "CreateObjData.hh"
 #include "ACG/Scenegraph/LineNode.hh"
 
 
@@ -16,6 +16,7 @@ void MastersThesisPlugin::initializePlugin() {
     connect(tool_->calculationButton, SIGNAL(clicked()), this, SLOT(slot_calculate_quad_mesh()));
     connect(tool_->selectionButton, SIGNAL(clicked()), this, SLOT(slot_select_point()));
     connect(tool_->previewButton, SIGNAL(clicked()), this, SLOT(slot_get_preview_dijkstra()));
+    connect(tool_->saveObjectFileButton, SIGNAL(clicked()), this, SLOT(slot_save_object_file()));
 
     emit addToolbox(tr("MastersThesis"), tool_);
 
@@ -247,13 +248,33 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
                     twoDimMesh.setQuadTexHeProperty(he);
                 }
             }
-            ExportObjFile exportMesh{*trimesh, selectedVertex};
+            CreateObjData objDataCreation{*trimesh, selectedVertex};
+            objDataCreation.getStream(objData);
 
             // switch to the right texture
             emit switchTexture("quadTextr", o_it->id());
             // select texture from menu
-            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED, PluginFunctions::ALL_VIEWERS);
+            tri_obj->setObjectDrawMode(ACG::SceneGraph::DrawModes::SOLID_2DTEXTURED_FACE_SHADED,
+                                       PluginFunctions::ALL_VIEWERS);
         }
+    }
+}
+
+
+void MastersThesisPlugin::slot_save_object_file() {
+    // Save selection button has been clicked
+
+    QString filename = QFileDialog::getSaveFileName(0, tr("Save As"), "object.obj", tr(".obj ( *.obj )"));
+
+    if (filename.length() > 0) {
+        QFile file(filename);
+
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            return;
+
+        QTextStream out(&file);
+        out << QString::fromStdString(objData.str());
+        file.close();
     }
 }
 
