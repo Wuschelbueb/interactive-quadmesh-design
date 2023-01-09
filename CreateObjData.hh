@@ -29,16 +29,19 @@ public:
         getStream();
     }
 
-    void getStream(std::stringstream &data) {
-        data << objData.rdbuf();
-        objData.str(std::string());
+    void getStream(std::string &data) {
+        objData = dataStream.str();
+        data = objData;
     }
 
 private:
     TriMesh &trimesh_;
     OpenMesh::VertexHandle centerVertex;
+    std::string objData;
     double lambda = 0;
-    std::stringstream objData;
+    double oldMin, oldMax;
+    std::stringstream dataStream;
+
 
     void getStream();
 
@@ -48,6 +51,13 @@ private:
 
     void getLambda();
 
+    void resetVertexStatus();
+
+    void writeTexCoords(std::map<int, int> &connectVhToTexCoord);
+
+    void writeVertices(std::map<int, int> &connectVhToTexCoord);
+
+    void writeFaces(std::map<int, int> &connectVhToTexCoord);
 };
 
 

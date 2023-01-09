@@ -2,6 +2,7 @@
 #define OPENFLIPPER_MASTERSTHESISPLUGIN_H
 
 #include <QObject>
+#include <QMessageBox>
 #include <OpenFlipper/common/Types.hh>
 #include <OpenFlipper/BasePlugin/MouseInterface.hh>
 #include <OpenFlipper/BasePlugin/PickingInterface.hh>
@@ -137,7 +138,7 @@ private:
     // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVector;
     // stringstream containing .obj data
-    std::stringstream objData;
+    std::string objData;
 
     // Last picked object
     int activeObject_;

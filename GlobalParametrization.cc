@@ -1115,6 +1115,3 @@ void GlobalParametrization::setFeatureLineConstraint(gmm::row_matrix<gmm::wsvect
         }
     }
 }
-
-
-

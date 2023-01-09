@@ -266,14 +266,17 @@ void MastersThesisPlugin::slot_save_object_file() {
 
     QString filename = QFileDialog::getSaveFileName(0, tr("Save As"), "object.obj", tr(".obj ( *.obj )"));
 
-    if (filename.length() > 0) {
+    if (filename.isEmpty()) {
+        return;
+    } else {
         QFile file(filename);
-
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::information(0, tr("Unable to open file"),
+                                     file.errorString());
             return;
-
+        }
         QTextStream out(&file);
-        out << QString::fromStdString(objData.str());
+        out << QString::fromStdString(objData);
         file.close();
     }
 }
