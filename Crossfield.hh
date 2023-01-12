@@ -62,17 +62,6 @@ private:
     void createCrossfields(const std::vector<int> &faces);
 
     /**
-     * calculate energy.\n
-     * is used check if small examples work properly.\n
-     * @param _A row matrix
-     * @param _x vector with solution
-     * @param _b vector with kappas
-     * @return
-     */
-    double
-    getEnergy(const RMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_b);
-
-    /**
      * gets and creates constraint matrix
      * @param heKappa map with halfedges and their assigned kappa
      * @param faces vector of faces of selection
@@ -110,7 +99,7 @@ private:
      * @param faces vector of faces of selection
      * @return the number of periodjump constraints
      */
-    int getAmountPJConstraints(const std::vector<int> &faces);
+    int getAmountPJConstraints(const std::vector<int> &faces, const std::map<int, double> &heKappa);
 
     /**
      * gets the indices which need to be rounded which are all periodjump entries.\n     *
@@ -165,22 +154,6 @@ private:
      */
     void getRhsSecondHalf(std::vector<double> &_rhs,
                           const std::map<int, double> &heKappa, const int facesPlusOne);
-
-    /**
-     * gets matrix A to calculate energy. Ax+b = 0.\n
-     *
-     * @param faces vector of faces of selection
-     * @param heKappa map of halfedges with their assigned kappa
-     * @return row matrix
-     */
-    RMatrixType getMatrixA(const std::vector<int> &faces, const std::map<int, double> &heKappa);
-
-    /**
-     * gets vector b to calculate energy. Ax+b = 0.\n
-     * @param heKappa map of halfedges with their assigned kappa
-     * @return
-     */
-    std::vector<double> getVectorb(const std::map<int, double> &heKappa);
 
     /**
      * get hessian matrix for the CoMiSo solver.\n
@@ -277,30 +250,6 @@ private:
                           const std::vector<double> &_x);
 
     /**
-     * calculates crossfield index.
-     * @param fv_it vertex handle
-     * @param faceSize position periodjump start in _x
-     * @param heKappa map of halfedges with their assigned kappa
-     * @param _x solution vector from solver
-     */
-    void setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize, const std::map<int, double> &heKappa,
-                          const std::vector<double> &_x);
-
-    /**
-     * gets components which are needed to calculate crossfield index
-     * @param fv_it vertex handle
-     * @param sumKappa sums up all the kappas adjacent to a vertex
-     * @param angleDefect gets the angle defect of a vertex
-     * @param sumPJ sums up all the pj ajdacent to a vertex
-     * @param faceSize position periodjump start in _x
-     * @param heKappa map of halfedges with their assigned kappa
-     * @param _x solution vector from solver
-     */
-    void getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
-                     const int faceSize, const std::map<int, double> &heKappa,
-                     const std::vector<double> &_x);
-
-    /**
      * rotate crossfield of each triangle with theta from solution vector _x\n
      * save as rotated as crossfield property
      * @param faces included in selection
@@ -378,6 +327,9 @@ private:
     ACG::Vec3d refVector_;
 
 
+    void getCrossFldIdxConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
+                                   gmm::row_matrix<gmm::wsvector<double>> &_constraints,
+                                   const std::vector<int> &faces);
 };
 
 

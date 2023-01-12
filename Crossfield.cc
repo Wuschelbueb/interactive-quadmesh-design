@@ -41,19 +41,22 @@ void Crossfield::getCrossfield() {
     csolver.misolver().set_local_error(1e-3);
     csolver.misolver().set_cg_error(1e-3);
     csolver.misolver().set_multiple_rounding();
-    std::cout << "Calculation of Smooth Crossfield\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
-              << gmm::mat_nrows(_constraints)
-              << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
-              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_H) << " and columns: " << gmm::mat_ncols(_H) << std::endl
-              << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
-              << "Size of heKappa:\t" << heKappa.size() << std::endl << "Size of idx:\t\t" << _idx_to_round.size()
-              << std::endl;
+//    std::cout << "Calculation of Smooth Crossfield\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
+//              << gmm::mat_nrows(_constraints)
+//              << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
+//              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_H) << " and columns: " << gmm::mat_ncols(_H) << std::endl
+//              << "Size of_constraints _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size()
+//              << std::endl
+//              << "Size of heKappa:\t" << heKappa.size() << std::endl << "Size of idx:\t\t" << _idx_to_round.size()
+//              << std::endl;
     csolver.solve(_constraints, _H, _x, _rhs, _idx_to_round);
+    for (auto &it: _x) {
+        if (std::abs(it) < 1E-10) {
+            it = 0;
+        }
+    }
     setRotThetaOfVectorField(faces, _x);
     createCrossfields(faces);
-    RMatrixType _A = getMatrixA(faces, heKappa);
-    std::vector<double> _b = getVectorb(heKappa);
-    double energy = getEnergy(_A, _x, _b);
     setPJProp(heKappa, _x, faces.size());
     getCrossFieldIdx(faces, heKappa, _x);
 
@@ -64,7 +67,7 @@ void Crossfield::getCrossfield() {
 //        std::cout << "_rhs[" << i << "] = " << _rhs[i] << std::endl;
 //    }
 //    std::cout << std::endl;
-//    std::ofstream xVector("/home/wuschelbueb/Desktop/xVectorCrossfield.txt");
+//    std::ofstream xVector("/home/wuschelbueb/Desktop/xVector.txt");
 //    for (std::size_t i = 0, max = _x.size(); i != max; ++i) {
 //        xVector << "_x[" << i << "] = " << _x[i] << std::endl;
 //    }
@@ -88,50 +91,21 @@ void Crossfield::createCrossfields(const std::vector<int> &faces) {
     }
 }
 
-double Crossfield::getEnergy(const RMatrixType &_A, const std::vector<double> &_x, const std::vector<double> &_b) {
-    std::vector<double> _energy(_b.size());
-    double finalEnergy = 0;
-    gmm::mult(_A, _x, _b, _energy);
-    gmm::clean(_energy, 1E-10);
-    return gmm::vect_sp(_energy, _energy);
-}
-
-Crossfield::RMatrixType Crossfield::getMatrixA(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
-    auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
-    int columns = faces.size() + heKappa.size(), rows = heKappa.size(), counter = 0, pj_start = faces.size();
-    RMatrixType _A(rows, columns);
-    for (auto i: heKappa) {
-        OpenMesh::HalfedgeHandle heh = trimesh_.halfedge_handle(i.first);
-        OpenMesh::FaceHandle fh1 = trimesh_.face_handle(heh);
-        OpenMesh::FaceHandle fh2 = trimesh_.face_handle(trimesh_.opposite_halfedge_handle(heh));
-        int pos_i = positionHessianMatrix[fh1];
-        int pos_j = positionHessianMatrix[fh2];
-        _A(counter, pos_i) = 1;
-        _A(counter, pos_j) = -1;
-        _A(counter, pj_start + counter) = (M_PI / 2);
-        counter++;
-    }
-    return _A;
-}
-
-std::vector<double> Crossfield::getVectorb(const std::map<int, double> &heKappa) {
-    std::vector<double> _b;
-    for (auto i: heKappa) {
-        _b.push_back(i.second);
-    }
-    return _b;
-}
-
 gmm::row_matrix<gmm::wsvector<double>>
 Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std::vector<int> &faces) {
-    int cNplusOne = 1, counter = 0, pj_start = faces.size();
+    trimesh_.request_vertex_status();
+    int cNplusOne = 1, counter = 0, pj_start = faces.size(), counterCxFldConstraints = 0;
     std::vector<int> faceConstraints = getConstrainedHe();
-    int pjConstraints = getAmountPJConstraints(faces);
+    int pjConstraints = getAmountPJConstraints(faces, heKappa);
     int n_row = faceConstraints.size() + pjConstraints;
     int n_col = heKappa.size() + faces.size();
     gmm::row_matrix<gmm::wsvector<double>> _constraints(n_row, n_col + cNplusOne);
     getThetaConstraints(n_col, counter, faceConstraints, _constraints);
     getPJConstraints(heKappa, counter, pj_start, _constraints);
+    getCrossFldIdxConstraints(heKappa, counter, pj_start, _constraints, faces);
+    for (auto vh: trimesh_.vertices()) {
+        trimesh_.status(vh).set_tagged(false);
+    }
     try {
         if (counter != n_row) {
             throw counter;
@@ -140,6 +114,7 @@ Crossfield::getConstraintMatrix(const std::map<int, double> &heKappa, const std:
         std::cerr << "getConstraintMatrix: amount of rows has to be the: " << n_row << " and not: " << counter << "\n";
     }
     gmm::clean(_constraints, 1E-10);
+    trimesh_.release_vertex_status();
     return _constraints;
 }
 
@@ -161,14 +136,24 @@ std::vector<int> Crossfield::getConstrainedHe() {
     return heConst;
 }
 
-int Crossfield::getAmountPJConstraints(const std::vector<int> &faces) {
+int Crossfield::getAmountPJConstraints(const std::vector<int> &faces, const std::map<int, double> &heKappa) {
     auto origin_constraint = OpenMesh::FProp<int>(trimesh_, "origin_constraint");
     auto predecessor_face = OpenMesh::FProp<int>(trimesh_, "predecessor_face");
+    for (auto vh: trimesh_.vertices()) {
+        trimesh_.status(vh).set_tagged(false);
+    }
     int counter = 0;
     for (const int &i: faces) {
         auto fh = trimesh_.face_handle(i);
         if (fh.idx() != origin_constraint[fh]) {
-            counter += 1;
+            counter++;
+        }
+    }
+    for (const auto &idx: heKappa) {
+        OpenMesh::SmartHalfedgeHandle he = make_smart(trimesh_.halfedge_handle(idx.first), trimesh_);
+        if (!trimesh_.is_boundary(he.to()) && !trimesh_.status(he.to()).tagged()) {
+            trimesh_.status(he.to()).set_tagged(true);
+            counter++;
         }
     }
     return counter;
@@ -212,6 +197,65 @@ void Crossfield::getPJConstraints(const std::map<int, double> &heKappa, int &cou
     }
 //    std::cout << "there are " << temp << " skips of " << heKappa.size() << " which means there are "
 //              << heKappa.size() - temp << " pj constraints\n";
+}
+
+void Crossfield::getCrossFldIdxConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
+                                           gmm::row_matrix<gmm::wsvector<double>> &_constraints,
+                                           const std::vector<int> &faces) {
+    auto heColor = OpenMesh::HProp<int>(trimesh_, "heColor");
+    auto vertexColor = OpenMesh::VProp<int>(trimesh_, "vertexColor");
+    for (auto vh: trimesh_.vertices()) {
+        trimesh_.status(vh).set_tagged(false);
+    }
+    for (const auto &fhIdx: faces) {
+        auto fh = trimesh_.face_handle(fhIdx);
+        for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
+            for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
+                if (heColor[*vohe_it] == 1) {
+                    trimesh_.status(*fv_it).set_tagged(true);
+                    vertexColor[*fv_it] = 1;
+                }
+            }
+        }
+    }
+    //calculate -4*I_o(v_i)
+    for (const auto &it: heKappa) {
+        double intValBaseIdx = 0, sumKappa = 0, angleDefect = 0;
+        OpenMesh::SmartHalfedgeHandle he = make_smart(trimesh_.halfedge_handle(it.first), trimesh_);
+        if (trimesh_.status(he.to()).tagged() || trimesh_.is_boundary(he.to())) {
+            continue;
+        }
+//        std::cout << "START, he idx: " << he.to().idx() << std::endl;
+        for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(he.to()); voh_it.is_valid(); ++voh_it) {
+            vertexColor[he.to()] = 2;
+            int position = 0;
+            //check if voh part of hekappa
+            auto itHe = heKappa.find(voh_it->idx());
+            //check if voh.opp part of hekappa
+            auto itOpp = heKappa.find(voh_it->opp().idx());
+            angleDefect += trimesh_.calc_sector_angle(voh_it->prev());
+            if (itHe != heKappa.end()) {
+                // if so get position in heKappa
+                position = distance(heKappa.begin(), itHe);
+//                std::cout << "he idx " << itHe->first << " with value: " << itHe->second
+//                          << " and position: " << position << std::endl;
+                sumKappa -= itHe->second;
+                // add to constraint matrix
+                _constraints(counter, pj_start + position) = -1;
+            }
+            if (itOpp != heKappa.end()) {
+                position = distance(heKappa.begin(), itOpp);
+//                std::cout << "heOpp idx " << itOpp->first << " with value: " << itOpp->second
+//                          << " and position: " << position << std::endl;
+                sumKappa += itOpp->second;
+                _constraints(counter, pj_start + position) = 1;
+            }
+        }
+        trimesh_.status(he.to()).set_tagged(true);
+        intValBaseIdx = 4 * ((2 * M_PI - angleDefect) + sumKappa) / (2 * M_PI);
+//        std::cout << "vertex Value base index: " << intValBaseIdx << std::endl;
+        _constraints(counter++, faces.size() + heKappa.size()) = intValBaseIdx;
+    }
 }
 
 std::vector<int> Crossfield::getIdxToRound(const std::map<int, double> &heKappa, int pj_start) {
@@ -528,7 +572,7 @@ void Crossfield::getConstraintAngleAndVecField(const std::vector<int> &faces) {
         Point u = trimesh_.calc_edge_vector(heh);
         Point v = refVector_;
         double alpha = std::atan2(v[1], v[0]) - std::atan2(u[1], u[0]);
-        if (alpha < 1E-3 && alpha > -1E-3) {
+        if (alpha < 1E-10 && alpha > -1E-10) {
             alpha = 0;
         }
         if (alpha < 0) {
@@ -560,110 +604,57 @@ void Crossfield::setRotThetaOfVectorField(const std::vector<int> &faces, const s
 
 void Crossfield::getCrossFieldIdx(const std::vector<int> &faces, const std::map<int, double> &heKappa,
                                   const std::vector<double> &_x) {
-    // request to change the status
     trimesh_.request_vertex_status();
+    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
+    auto vertexColor = OpenMesh::VProp<int>(trimesh_, "vertexColor");
     auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
     auto positionHessianMatrix = OpenMesh::FProp<int>(trimesh_, "positionHessianMatrix");
     for (auto vh: trimesh_.vertices()) {
         crossFieldIdx[vh] = 0;
         trimesh_.status(vh).set_tagged(false);
     }
-    for (const int &i: faces) {
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        for (TriMesh::FaceVertexIter v_it = trimesh_.fv_iter(fh); v_it.is_valid(); ++v_it) {
-            if (!trimesh_.status(*v_it).tagged() && !trimesh_.is_boundary(*v_it)) {
-                setCrossFieldIdx(v_it, faces.size(), heKappa, _x);
-//            } else if (!trimesh_.status(*v_it).tagged() && trimesh_.is_boundary(*v_it)) {
-//                double idx = 0;
-//                TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*v_it);
-//                ++vohe_it;
-//                for (; vohe_it.is_valid(); ++vohe_it) {
-//                    // need to skip boundary sector
-//                    if (trimesh_.is_boundary(vohe_it->prev()))
-//                        continue;
-//                    // add sector angle
-//                    double sector_angle = std::acos(trimesh_.calc_edge_vector(*vohe_it).normalize()
-//                                                    | -trimesh_.calc_edge_vector(vohe_it->prev()).normalize());
-//                    idx += sector_angle;
-//
-//                    // at boundaries the connection is zero per definition
-//                    double angle = 0, pj = 0, kappa;
-//                    if (!trimesh_.is_boundary(vohe_it->edge())) {
-//                        int position = 0;
-//                        auto it = heKappa.find(vohe_it->idx());
-//                        auto it2 = heKappa.find(vohe_it->opp().idx());
-//                        if (it != heKappa.end()) {
-//                            //return position of it in heKappa
-//                            position = std::distance(std::begin(heKappa), it);
-//                            //with position and faceSize we can extract p_ij value of _x vector (solution)
-//                            pj += _x[faces.size() + position];
-//                            kappa += it->second;
-//                        } else if (it2 != heKappa.end()) {
-//                            position = std::distance(std::begin(heKappa), it2);
-//                            pj -= _x[faces.size() + position];
-//                            kappa -= it->second;
-//                        }
-//                        int pos1 = positionHessianMatrix[vohe_it->face()];
-//                        int pos2 = positionHessianMatrix[vohe_it->opp().face()];
-//                        double theta1 = _x[pos1];
-//                        double theta2 = _x[pos2];
-//                        pj < 0 ? pj - 0.5 : pj + 0.5;
-//                        angle = theta1 - theta2 + pj * 0.5 * M_PI + kappa;
-//                    }
-//                    idx += angle;
-//                }
-//                idx = (0.5 - idx / (2.0 * M_PI));
-//                idx < 0 ? idx - 0.5 : idx + 0.5;
-//                crossFieldIdx[*v_it] = idx;
-//                trimesh_.status(*v_it).set_tagged(true);
+//    std::ofstream xVector("/home/wuschelbueb/Desktop/newGetCxIdx.txt");
+    for (const auto &heIdx: heKappa) {
+        auto he = make_smart(trimesh_.halfedge_handle(heIdx.first), trimesh_);
+        if (he.to().tagged() || he.to().is_boundary() || vertexColor[he.to()] == 1) {
+            continue;
+        }
+//        xVector << "vertex idx: " << he.to().idx() << std::endl;
+        double sumKappa = 0.0, angleDefect = 0.0, sumPJ = 0.0, intValBaseIdx = 0.0;
+        for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(he.to()); vohe_it.is_valid(); ++vohe_it) {
+            auto it = heKappa.find(vohe_it->idx());
+            auto it2 = heKappa.find(vohe_it->opp().idx());
+            angleDefect += trimesh_.calc_sector_angle(vohe_it->prev());
+//            xVector << "angleDefect individual " << trimesh_.calc_sector_angle(vohe_it->prev()) << std::endl;
+            if (it != heKappa.end()) {
+                //with position and faceSize we can extract p_ij value of _x vector (solution)
+                sumPJ -= periodJump[*vohe_it];
+                sumKappa -= it->second;
+//                xVector << "he idx: " << it->first << " with kappa: " << -it->second <<
+//                        "\npj: " << -periodJump[*vohe_it] << std::endl;
+            } else if (it2 != heKappa.end()) {
+                sumPJ += periodJump[vohe_it->opp()];
+                sumKappa += it2->second;
+//                xVector << "he idx: " << it2->first << " with kappa: " << it2->second
+//                        << "\npj: " << periodJump[vohe_it->opp()] << std::endl;
             }
         }
-    }
-    trimesh_.release_vertex_status();
-}
-
-void
-Crossfield::setCrossFieldIdx(TriMesh::FaceVertexIter &fv_it, const int faceSize, const std::map<int, double> &heKappa,
-                             const std::vector<double> &_x) {
-    auto crossFieldIdx = OpenMesh::VProp<double>(trimesh_, "crossFieldIdx");
-    bool checkOHe = true;
-    double sumKappa = 0.0, angleDefect = 0.0, sumPJ = 0.0, intValBaseIdx = 0.0;
-    //gets sumKappa, angleDefect and sumPJ values
-    getCrFldVal(fv_it, sumKappa, angleDefect, sumPJ, faceSize, heKappa, _x);
-    intValBaseIdx = ((2 * M_PI - angleDefect) + sumKappa) / (2 * M_PI);
-    double crossFldIdx = intValBaseIdx + (sumPJ / 4);
-    //clean values close to zero
-    if (crossFldIdx < 1E-2 && crossFldIdx > -1E-2) {
-        crossFldIdx = 0;
-    }
-//    double crossV2 = crossFldIdx * 4;
-//    crossV2 < 0 ? crossV2 - 0.5 : crossV2 + 0.5;
-//    int crossV2i = crossV2;
-//    std::cout << "Crossfield Index (" << fv_it->idx() << "): " << crossFldIdx << "\n\tafter ceil "
-//              << std::ceil(crossFldIdx * 100.0) / 100.0
-//              << "\n\tdiff rounding " << crossV2i << std::endl;
-//    crossFldIdx = std::ceil(crossFldIdx * 100.0) / 100.0;
-    crossFieldIdx[*fv_it] = crossFldIdx;
-    trimesh_.status(*fv_it).set_tagged(true);
-}
-
-void Crossfield::getCrFldVal(TriMesh::FaceVertexIter &fv_it, double &sumKappa, double &angleDefect, double &sumPJ,
-                             const int faceSize, const std::map<int, double> &heKappa,
-                             const std::vector<double> &_x) {
-    auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
-    for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
-        auto it = heKappa.find(vohe_it->idx());
-        auto it2 = heKappa.find(vohe_it->opp().idx());
-        angleDefect += trimesh_.calc_sector_angle(vohe_it->prev());
-        if (it != heKappa.end()) {
-            //with position and faceSize we can extract p_ij value of _x vector (solution)
-            sumPJ += periodJump[*vohe_it];
-            sumKappa += it->second;
-        } else if (it2 != heKappa.end()) {
-            sumPJ -= periodJump[vohe_it->opp()];
-            sumKappa -= it2->second;
+        intValBaseIdx = ((2 * M_PI - angleDefect) + sumKappa) / (2 * M_PI);
+        double crossFldIdx = intValBaseIdx + (sumPJ / 4);
+        //clean values close to zero
+        if (std::abs(crossFldIdx) < 1E-10) {
+            crossFldIdx = 0;
         }
+//        xVector << "Crossfield Index (" << he.idx() << "): " << crossFldIdx
+//                << "\nsum Kappa: " << sumKappa
+//                << "\nsum PJ: " << sumPJ
+//                << "\nangle defect: " << angleDefect
+//                << "\nintValeBaseIdx: " << intValBaseIdx << std::endl;
+        crossFieldIdx[he.to()] = crossFldIdx;
+        trimesh_.status(he.to()).set_tagged(true);
     }
+//    xVector.close();
+    trimesh_.release_vertex_status();
 }
 
 void Crossfield::colorFaces(const std::vector<int> &faces) {
@@ -711,10 +702,9 @@ Crossfield::rotPointWithRotMatrix(const OpenMesh::FaceHandle fh, const Point vec
 
 void Crossfield::setPJProp(std::map<int, double> &heKappa, std::vector<double> &_x, const int faceSize) {
     auto periodJump = OpenMesh::HProp<int>(trimesh_, "periodJump");
-    int position = faceSize;
+    int position = 0;
     for (const auto &it: heKappa) {
         auto he = trimesh_.halfedge_handle(it.first);
-        periodJump[he] = _x[position++];
-
+        periodJump[he] = std::round(_x[faceSize + position++]);
     }
 }
