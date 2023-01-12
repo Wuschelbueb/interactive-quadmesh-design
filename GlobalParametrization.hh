@@ -42,7 +42,7 @@ public:
      *      heInRange_ = heInRange;
      * }
      */
-    GlobalParametrization(TriMesh &trimesh, double &hValue)
+    GlobalParametrization(TriMesh &trimesh, const double &hValue)
             : trimesh_{trimesh}, hVal{hValue} {
     }
 
@@ -57,7 +57,7 @@ public:
 private:
 
     TriMesh &trimesh_;
-    double &hVal;
+    const double &hVal;
 
     /**
      * get faces part of the selection.\n

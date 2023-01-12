@@ -215,7 +215,13 @@ void MastersThesisPlugin::slot_get_preview_dijkstra() {
 }
 
 void MastersThesisPlugin::slot_calculate_quad_mesh() {
-    double hValue = tool_->hValue->value();
+    const double hValue = tool_->hValue->value();
+    const double refDist = tool_->dijkstra_distance->value();
+    std::ostringstream tempStream;
+    tempStream << "# scale: " << hValue << "\n# distance: " << refDist
+               << "\n# number of quads: " << std::ceil(refDist / hValue)
+               << "\n";
+    objData = tempStream.str();
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
         // create mesh
@@ -263,14 +269,13 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
 
 void MastersThesisPlugin::slot_save_object_file() {
     // Save selection button has been clicked
-
     QString filename = QFileDialog::getSaveFileName(0, tr("Save As"), "object.obj", tr(".obj ( *.obj )"));
 
     if (filename.isEmpty()) {
         return;
     } else {
         QFile file(filename);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (!file.open(QIODevice::WriteOnly)) {
             QMessageBox::information(0, tr("Unable to open file"),
                                      file.errorString());
             return;
