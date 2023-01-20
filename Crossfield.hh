@@ -330,8 +330,6 @@ private:
     void getCrossFldIdxConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
                                    gmm::row_matrix<gmm::wsvector<double>> &_constraints,
                                    const std::vector<int> &faces);
-
-    void colorVertices(const std::vector<int> &faces);
 };
 
 
