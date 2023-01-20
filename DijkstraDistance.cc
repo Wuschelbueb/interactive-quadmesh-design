@@ -532,6 +532,10 @@ void DijkstraDistance::cleanMeshOfProps() {
         auto propH = OpenMesh::HProp<bool>(trimesh_, "boundaryHe").getRawProperty();
         trimesh_.remove_property(propH);
     }
+    if (OpenMesh::hasProperty<OpenMesh::VertexHandle, int>(trimesh_, "vertexColor")) {
+        auto propH = OpenMesh::VProp<int>(trimesh_, "vertexColor").getRawProperty();
+        trimesh_.remove_property(propH);
+    }
     trimesh_.request_halfedge_texcoords2D();
     for (auto he: trimesh_.halfedges()) {
         trimesh_.set_texcoord2D(he, {0.f, 0.f});
