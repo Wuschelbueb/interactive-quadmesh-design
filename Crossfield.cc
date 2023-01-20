@@ -207,27 +207,14 @@ void Crossfield::getCrossFldIdxConstraints(const std::map<int, double> &heKappa,
     for (auto vh: trimesh_.vertices()) {
         trimesh_.status(vh).set_tagged(false);
     }
-    for (const auto &fhIdx: faces) {
-        auto fh = trimesh_.face_handle(fhIdx);
-        for (TriMesh::FaceVertexIter fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-            for (TriMesh::VertexOHalfedgeIter vohe_it = trimesh_.voh_iter(*fv_it); vohe_it.is_valid(); ++vohe_it) {
-                if (heColor[*vohe_it] == 1) {
-                    trimesh_.status(*fv_it).set_tagged(true);
-                    vertexColor[*fv_it] = 1;
-                }
-            }
-        }
-    }
-    //calculate -4*I_o(v_i)
     for (const auto &it: heKappa) {
         double intValBaseIdx = 0, sumKappa = 0, angleDefect = 0;
         OpenMesh::SmartHalfedgeHandle he = make_smart(trimesh_.halfedge_handle(it.first), trimesh_);
-        if (trimesh_.status(he.to()).tagged() || trimesh_.is_boundary(he.to())) {
+        if (trimesh_.status(he.to()).tagged() || trimesh_.is_boundary(he.to()) || vertexColor == 1) {
             continue;
         }
 //        std::cout << "START, he idx: " << he.to().idx() << std::endl;
         for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(he.to()); voh_it.is_valid(); ++voh_it) {
-            vertexColor[he.to()] = 2;
             int position = 0;
             //check if voh part of hekappa
             auto itHe = heKappa.find(voh_it->idx());
@@ -529,6 +516,7 @@ std::vector<int> Crossfield::getFacesVecWithRefHeProp() {
     }
     colorHEdges();
     colorFaces(faces);
+    colorVertices(faces);
     trimesh_.release_halfedge_status();
     trimesh_.release_face_status();
     return faces;
@@ -678,6 +666,24 @@ void Crossfield::colorHEdges() {
     }
     for (const int &i: heConstraints_) {
         heColor(trimesh_.halfedge_handle(i)) = 3;
+    }
+}
+
+void Crossfield::colorVertices(const std::vector<int> &faces) {
+    auto heColor = OpenMesh::HProp<int>(trimesh_, "heColor");
+    auto vertexColor = OpenMesh::VProp<int>(trimesh_, "vertexColor");
+    for (const auto &fhIdx: faces) {
+        auto fh = make_smart(trimesh_.face_handle(fhIdx), trimesh_);
+        for (auto vh: fh.vertices()) {
+            for (auto ohe: vh.outgoing_halfedges()) {
+                if (heColor[ohe] == 1) {
+                    vertexColor[vh] = 1;
+                    break;
+                } else {
+                    vertexColor[vh] = 2;
+                }
+            }
+        }
     }
 }
 
