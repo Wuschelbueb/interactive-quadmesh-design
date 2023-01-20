@@ -9,8 +9,8 @@ This project is an advanced plugin designed specifically to integrate seamlessly
 ```bash
 git clone https://github.com/Wuschelbueb/interactive-quadmesh-design.git
 ```
-3. Make sure CoMISo is part of OpenFlipper as well
-4. Build OpenFlipper with a IDE.
+3. Make sure CoMISo is part of OpenFlipper
+4. Build OpenFlipper with an IDE or editor
 
 ## How to use
 
