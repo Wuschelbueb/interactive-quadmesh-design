@@ -104,7 +104,6 @@ public slots:
      */
     void slot_calculate_quad_mesh();
 
-
     /**
      * get first selection with the help of dijkstra algorithm.\n
      */
@@ -114,6 +113,7 @@ public slots:
      * select a point for crossfield
      */
      void slot_select_point();
+
     /**
      * open dialog to save obj file
      */
@@ -140,8 +140,15 @@ private:
     // stringstream containing .obj data
     std::string objData;
 
+    /**
+     * helper function which gets the number of quads which can be displayed
+     * if the number is higher there is a chance that artifacts pop up.
+     */
+    std::string getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
+                                 const double hValue, TriMesh &trimesh);
     // Last picked object
     int activeObject_;
+
 };
 
 #endif //OPENFLIPPER_MASTERSTHESISPLUGIN_H

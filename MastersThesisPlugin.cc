@@ -18,7 +18,7 @@ void MastersThesisPlugin::initializePlugin() {
     connect(tool_->previewButton, SIGNAL(clicked()), this, SLOT(slot_get_preview_dijkstra()));
     connect(tool_->saveObjectFileButton, SIGNAL(clicked()), this, SLOT(slot_save_object_file()));
 
-    emit addToolbox(tr("MastersThesis"), tool_);
+    emit addToolbox(tr("Interactive Quad Mesh Design"), tool_);
 
 }
 
@@ -216,12 +216,7 @@ void MastersThesisPlugin::slot_get_preview_dijkstra() {
 
 void MastersThesisPlugin::slot_calculate_quad_mesh() {
     const double hValue = tool_->hValue->value();
-    const double refDist = tool_->dijkstra_distance->value();
-    std::ostringstream tempStream;
-    tempStream << "# scale: " << hValue << "\n# distance: " << refDist
-               << "\n# number of quads: " << std::ceil(refDist / hValue)
-               << "\n";
-    objData = tempStream.str();
+
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
         // create mesh
@@ -234,6 +229,7 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
         refVector = clickedPoint - selectedVertexAsPoint;
 
         if (trimesh) {
+            objData.clear();
             Crossfield crossFieldMesh{*trimesh, includedHalfedges, originHalfedges, refVector};
             crossFieldMesh.getCrossfield();
             ACG::SceneGraph::LineNode *lineNode;
@@ -243,6 +239,9 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
                                                          "Cross field direction");
                 tri_obj->removeAdditionalNode(lineNode, name(), "Cross field direction");
             }
+
+            std::string initData = getNumberOfQuads(selectedVertexAsPoint, clickedPoint, hValue, *trimesh);
+            objData += initData;
 
             GlobalParametrization gpMesh{*trimesh, hValue};
             gpMesh.getGlobalParam();
@@ -284,6 +283,57 @@ void MastersThesisPlugin::slot_save_object_file() {
         out << QString::fromStdString(objData);
         file.close();
     }
+}
+
+std::string MastersThesisPlugin::getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
+                                                  const double hValue, TriMesh &trimesh) {
+    auto vertexColor = OpenMesh::VProp<int>(trimesh, "vertexColor");
+    trimesh.request_vertex_status();
+    std::stringstream tempStream;
+    float minEuclideanDistance = INT_MAX;
+    float maxEuclideanDistance = -1000;
+    ACG::Vec3d minDistPoint;
+    ACG::Vec3d maxDistPoint;
+    for (auto vh: trimesh.vertices()) {
+        if (vertexColor[vh] != 1 || selectedVertex == vh) {
+            continue;
+        }
+//        for(auto vh_neigh: vh.vertices()) {
+//            if (vertexColor[vh_neigh] == 0 && !vh_neigh.tagged()) {
+//                std::cout << "vertex idx: " << vh_neigh.idx()
+//                << "\nand distance from selected Vertex: " << (selectedVertexAsPoint - trimesh.point(vh_neigh)).norm() << std::endl;
+//                trimesh.status(vh_neigh).set_tagged(true);
+//            }
+//        }
+        ACG::Vec3d tempDist = selectedVertexAsPoint - trimesh.point(vh);
+        if (tempDist.norm() < minEuclideanDistance) {
+            minEuclideanDistance = tempDist.norm();
+            minDistPoint = trimesh.point(vh);
+//            std::cout << "MIN euclidean distance of (" << selectedVertex.idx() << ") to (" << vh.idx() << ") is: "
+//                      << minEuclideanDistance << " and distance between points is " << tempDist.norm() << std::endl;
+        } else if (tempDist.norm() > maxEuclideanDistance) {
+            maxEuclideanDistance = tempDist.norm();
+//            std::cout << "MAX euclidean distance of (" << selectedVertex.idx() << ") to (" << vh.idx() << ") is: "
+//                      << maxEuclideanDistance << " and distance between points is " << tempDist.norm() << std::endl;
+        }
+    }
+    ACG::Vec3d a = selectedVertexAsPoint - minDistPoint, b = selectedVertexAsPoint - clickedPoint;
+    double dotProduct = a | b;
+    double angle = std::acos(dotProduct / (a.norm() * b.norm()));
+    double factor = -0.5 * std::cos(4 * angle) + 0.5;
+    double numerator = hValue * (1 + ((sqrt(2.0) - 1) * factor));
+//            std::cout << "minDistPoint " << a
+//                      << "\nclickedPoint " << b
+//                      << "\ndotProdcut " << dotProduct
+//                      << "\nangle " << angle << " deg: " << angle * 180 / M_PI
+//                      << "\nfactor " << factor << std::endl;
+    int numberQuads = 2 * std::floor(minEuclideanDistance / numerator);
+    numberQuads = (numberQuads > 6) ? numberQuads - 4 : numberQuads;
+//    double maxDist = hValue * sqrt(2) * numberQuads;
+//    std::cout << "number quads " << numberQuads << "\nminEuclideanDist " << minEuclideanDistance << std::endl;
+    tempStream << "# distance: " << minEuclideanDistance << "\n# nbQuads: " << numberQuads << std::endl;
+    trimesh.release_vertex_status();
+    return tempStream.str();
 }
 
 #if QT_VERSION < 0x050000

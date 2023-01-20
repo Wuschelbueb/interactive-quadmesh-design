@@ -53,13 +53,13 @@ void GlobalParametrization::getGlobalParam() {
 //        vertices << "vertex " << vh.idx() << "= [" << trimesh_.calc_centroid(vh) << "]" << std::endl;
 //    }
 //    vertices.close();
-    std::cout << "Calculation of Global Parametrization\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
-              << gmm::mat_nrows(_constraints)
-              << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
-              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_hessian) << " and columns: " << gmm::mat_ncols(_hessian)
-              << std::endl
-              << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
-              << "Size of idx:\t\t" << _idx_to_round.size() << std::endl;
+//    std::cout << "Calculation of Global Parametrization\n" << "Dimensions of parameters:\n" << "Constraints Rows:\t"
+//              << gmm::mat_nrows(_constraints)
+//              << " and columns: " << gmm::mat_ncols(_constraints) << std::endl
+//              << "A Rows:\t\t\t\t" << gmm::mat_nrows(_hessian) << " and columns: " << gmm::mat_ncols(_hessian)
+//              << std::endl
+//              << "Size of _x:\t\t\t" << _x.size() << std::endl << "Size of _rhs:\t\t" << _rhs.size() << std::endl
+//              << "Size of idx:\t\t" << _idx_to_round.size() << std::endl;
     COMISO::ConstrainedSolver csolver;
     csolver.misolver().set_iter_full(false);
     csolver.misolver().set_local_iters(0);
