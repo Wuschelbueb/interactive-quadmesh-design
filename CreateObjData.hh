@@ -22,6 +22,13 @@
 #include <float.h>
 #include <cmath>
 
+
+/**
+ * class which creates an .obj file for the visualization.
+ * creates, vertices, normals, texcoords, faces,
+ * center of selection, minimum distance to nearest vertex of center
+ * which then can be extracted by the openGL tool
+ */
 class CreateObjData {
 public:
     CreateObjData(TriMesh &trimesh, OpenMesh::VertexHandle &selectedVertex)
@@ -29,35 +36,72 @@ public:
         getStream();
     }
 
+    /**
+     * is a public function which saves the dataStream as a string.
+     * @param data pass by reference variable which save the dataStream as string
+     */
     void getStream(std::string &data) {
         objData = dataStream.str();
-        data = objData;
+        if (!objData.empty()) {
+            objData.pop_back();
+        }
+        data += objData;
+    }
+
+    ~CreateObjData() {
     }
 
 private:
     TriMesh &trimesh_;
+    // vertex which is at the center of selection
     OpenMesh::VertexHandle centerVertex;
+    // string of data
     std::string objData;
-    double lambda = 0;
-    double oldMin, oldMax;
+    // used to create data for .obj file
     std::stringstream dataStream;
 
-
+    /**
+     * gets called when object gets initialized.
+     * requests all the necessary properties and
+     * calls createData
+     */
     void getStream();
 
+    /**
+     * creates the header comments of .obj file
+     * calls the other functions as well
+     */
     void createData();
 
-    double transformToTexCoord(double value);
-
-    void getLambda();
-
+    /**
+     * resets the status of all vertices
+     */
     void resetVertexStatus();
 
-    void writeTexCoords(std::map<int, int> &connectVhToTexCoord);
+    /**
+     * writes the vertex data to the stream
+     * @param mapVertexIdx assigns nummeration for vertices
+     * which later get used by writeFaces function
+     */
+    void writeVertices(std::map<int, int> &mapVertexIdx);
 
-    void writeVertices(std::map<int, int> &connectVhToTexCoord);
+    /**
+     * writes the texcoord data to the stream
+     * @param mapTexCoordToIdx assigns nummeration to TexCoords
+     * which later get used by writeFaces function
+     */
+    void writeTexCoords(std::map<int, int> &mapTexCoordToIdx);
 
-    void writeFaces(std::map<int, int> &connectVhToTexCoord);
+
+    /**
+     * writes faces data to stream
+     * uses both maps to:
+     * 1. determine the order in which the faces have to be written
+     * 2. which texCoords has to be assigned to which vertex
+     * @param mapVertexToIdx contains the enummeration for vertices
+     * @param mapTexCoordToIdx contains the enummeration for TexCoords
+     */
+    void writeFaces(const std::map<int, int> &mapVertexToIdx, const std::map<int, int> &mapTexCoordToIdx);
 };
 
 
