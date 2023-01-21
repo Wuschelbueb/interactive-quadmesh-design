@@ -61,7 +61,7 @@ void CreateObjData::writeTexCoords(std::map<int, int> &mapTexCoordToIdx) {
     int counter = 1;
     dataStream << "\n# Texture Coordinates\n";
     for (auto he: trimesh_.halfedges()) {
-        if (he.is_boundary() || he.to().tagged() || heColor[he] == 1) {
+        if (he.is_boundary() || he.to().tagged()) {
             continue;
         }
         dataStream << "# " << he.to().idx() << "\nvt " << quadTextr[he][0]
@@ -86,21 +86,13 @@ void CreateObjData::writeFaces(const std::map<int, int> &mapVertexToIdx, const s
         auto heTex = mapTexCoordToIdx.find(he.to().idx());
         auto heNextTex = mapTexCoordToIdx.find(he.next().to().idx());
         auto hePrevTex = mapTexCoordToIdx.find(he.prev().to().idx());
-        if (heColor[he] != 1) {
-            dataStream << "\n# " << he.face().idx() << "\nf "
-                       << heNb->second << "/" << heTex->second << "/" << heNb->second << " "
-                       << heNextNb->second << "/" << heNextTex->second << "/" << heNextNb->second << " "
-                       << hePrevNb->second << "/" << hePrevTex->second << "/" << hePrevNb->second;
-        } else {
-            dataStream << "\n# " << he.face().idx() << "\nf "
-                       << heNb->second << "//" << heNb->second << " "
-                       << heNextNb->second << "//" << heNextNb->second << " "
-                       << hePrevNb->second << "//" << hePrevNb->second;
-        }
+        dataStream << "\n# " << he.face().idx() << "\nf "
+                   << heNb->second << "/" << heTex->second << "/" << heNb->second << " "
+                   << heNextNb->second << "/" << heNextTex->second << "/" << heNextNb->second << " "
+                   << hePrevNb->second << "/" << hePrevTex->second << "/" << hePrevNb->second;
         trimesh_.status(he).set_tagged(true);
         trimesh_.status(he.next()).set_tagged(true);
         trimesh_.status(he.prev()).set_tagged(true);
     }
-    dataStream << "\n# placeholder";
     dataStream << "\n# End of File";
 }
