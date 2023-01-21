@@ -7,7 +7,7 @@
 void Get2DTexture::initProperty() {
     auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(trimesh_, "quadTextr");
     for (auto he: trimesh_.halfedges()) {
-        quadTextr[he] = {0, 101};
+        quadTextr[he] = {0, 1337};
     }
 }
 

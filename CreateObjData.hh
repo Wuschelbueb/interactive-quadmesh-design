@@ -85,13 +85,6 @@ private:
      */
     void writeVertices(std::map<int, int> &mapVertexIdx);
 
-    /**
-     * writes the texcoord data to the stream
-     * @param mapTexCoordToIdx assigns nummeration to TexCoords
-     * which later get used by writeFaces function
-     */
-    void writeTexCoords(std::map<int, int> &mapTexCoordToIdx);
-
 
     /**
      * writes faces data to stream
@@ -101,7 +94,7 @@ private:
      * @param mapVertexToIdx contains the enummeration for vertices
      * @param mapTexCoordToIdx contains the enummeration for TexCoords
      */
-    void writeFaces(const std::map<int, int> &mapVertexToIdx, const std::map<int, int> &mapTexCoordToIdx);
+    void writeFaces(const std::map<int, int> &mapVertexToIdx);
 };
 
 
