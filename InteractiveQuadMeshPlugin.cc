@@ -1,4 +1,4 @@
-#include "MastersThesisPlugin.hh"
+#include "InteractiveQuadMeshPlugin.hh"
 #include "DijkstraDistance.hh"
 #include "Crossfield.hh"
 #include "GlobalParametrization.hh"
@@ -8,8 +8,8 @@
 #include "ACG/Scenegraph/LineNode.hh"
 
 
-void MastersThesisPlugin::initializePlugin() {
-    tool_ = new MastersThesisToolbar();
+void InteractiveQuadMeshPlugin::initializePlugin() {
+    tool_ = new InteractiveQuadMeshToolbar();
     QSize size(300, 300);
     tool_->resize(size);
 
@@ -22,14 +22,14 @@ void MastersThesisPlugin::initializePlugin() {
 
 }
 
-void MastersThesisPlugin::pluginsInitialized() {
+void InteractiveQuadMeshPlugin::pluginsInitialized() {
     emit addTexture("quadTextr", "quadTexture.png", 2);
     emit setTextureMode("quadTextr", "clamp=false,center=false,repeat=true,type=halfedgebased");
     emit addPickMode("Vertex Selection");
 
 }
 
-void MastersThesisPlugin::slot_select_point() {
+void InteractiveQuadMeshPlugin::slot_select_point() {
     if (tool_->selectionButton->isChecked()) {
         // Picking mode of our plugin shall be activated
         // set OpenFlipper's action mode to picking
@@ -42,7 +42,7 @@ void MastersThesisPlugin::slot_select_point() {
     }
 }
 
-void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
+void InteractiveQuadMeshPlugin::slotPickModeChanged(const std::string &_mode) {
     // change visualization of 3D object
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
@@ -57,7 +57,7 @@ void MastersThesisPlugin::slotPickModeChanged(const std::string &_mode) {
 //    tool_->selectionButton->setChecked(_mode == "Vertex Selection");
 }
 
-void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
+void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
     // selects vertex which is at center of patch
     if (PluginFunctions::pickMode() == ("Vertex Selection") &&
         PluginFunctions::actionMode() == Viewer::PickingMode &&
@@ -159,7 +159,7 @@ void MastersThesisPlugin::slotMouseEvent(QMouseEvent *_event) {
     emit updateView();
 }
 
-void MastersThesisPlugin::slotUpdateTexture(QString _textureName, int _identifier) {
+void InteractiveQuadMeshPlugin::slotUpdateTexture(QString _textureName, int _identifier) {
     if (_textureName != "quadTextr") {
         return;
     }
@@ -183,7 +183,7 @@ void MastersThesisPlugin::slotUpdateTexture(QString _textureName, int _identifie
     }
 }
 
-void MastersThesisPlugin::slot_get_preview_dijkstra() {
+void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
     const double refDist = tool_->dijkstra_distance->value();
 //    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
     const bool inclBoundaryF = false;
@@ -214,7 +214,7 @@ void MastersThesisPlugin::slot_get_preview_dijkstra() {
     }
 }
 
-void MastersThesisPlugin::slot_calculate_quad_mesh() {
+void InteractiveQuadMeshPlugin::slot_calculate_quad_mesh() {
     const double hValue = tool_->hValue->value();
 
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
@@ -266,7 +266,7 @@ void MastersThesisPlugin::slot_calculate_quad_mesh() {
 }
 
 
-void MastersThesisPlugin::slot_save_object_file() {
+void InteractiveQuadMeshPlugin::slot_save_object_file() {
     // Save selection button has been clicked
     QString filename = QFileDialog::getSaveFileName(0, tr("Save As"), "object.obj", tr(".obj ( *.obj )"));
 
@@ -285,8 +285,8 @@ void MastersThesisPlugin::slot_save_object_file() {
     }
 }
 
-std::string MastersThesisPlugin::getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
-                                                  const double hValue, TriMesh &trimesh) {
+std::string InteractiveQuadMeshPlugin::getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
+                                                        const double hValue, TriMesh &trimesh) {
     auto vertexColor = OpenMesh::VProp<int>(trimesh, "vertexColor");
     trimesh.request_vertex_status();
     std::stringstream tempStream;

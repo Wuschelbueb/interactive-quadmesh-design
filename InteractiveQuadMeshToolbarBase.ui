@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MastersThesisToolbarBase</class>
- <widget class="QWidget" name="MastersThesisToolbarBase">
+ <class>InteractiveQuadMeshToolbarBase</class>
+ <widget class="QWidget" name="InteractiveQuadMeshToolbarBase">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>537</width>
-    <height>211</height>
+    <height>205</height>
    </rect>
   </property>
   <property name="windowTitle">

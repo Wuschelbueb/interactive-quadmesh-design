@@ -14,9 +14,9 @@
 #include <ObjectTypes/TriangleMesh/TriangleMesh.hh>
 #include <ObjectTypes/PolyMesh/PolyMesh.hh>
 #include <OpenMesh/Core/Utils/PropertyManager.hh>
-#include "MastersThesisToolbar.hh"
+#include "InteractiveQuadMeshToolbar.hh"
 
-class MastersThesisPlugin
+class InteractiveQuadMeshPlugin
         : public QObject,
           BaseInterface,
           MouseInterface,
@@ -88,9 +88,9 @@ private slots:
 
 public :
 
-    ~MastersThesisPlugin() {}
+    ~InteractiveQuadMeshPlugin() {}
 
-    MastersThesisPlugin() :
+    InteractiveQuadMeshPlugin() :
             activeObject_(-1) {}
 
     QString name() { return QString("Simple plugin"); };
@@ -124,7 +124,7 @@ public slots:
 
 private:
     // initialize toolbar plugin
-    MastersThesisToolbar *tool_;
+    InteractiveQuadMeshToolbar *tool_;
     //store outgoing he of selected Vertex
     std::vector<int> originHalfedges;
     // vector based on included faces
