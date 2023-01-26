@@ -74,7 +74,6 @@ std::vector<int> GlobalParametrization::getSingularities(std::vector<int> &faces
     for (const auto &i: faces) {
         auto fh = trimesh_.face_handle(i);
         for (auto fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-            // try with != 0
             if (crossFieldIdx[*fv_it] < -1E-1 || crossFieldIdx[*fv_it] > 1E-1) {
                 singularities.push_back(fv_it->idx());
             }

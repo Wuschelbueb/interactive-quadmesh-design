@@ -17,7 +17,6 @@ void CreateObjData::createData() {
 
     bool oneTime = true;
     std::map<int, int> mapVertexIdx;
-    std::map<int, int> mapTexCoordToIdx;
     for (auto he: trimesh_.halfedges()) {
         if (he.to().idx() == centerVertex.idx() && oneTime) {
             dataStream << "# TexCoords: " << quadTextr[he][0] << " " << quadTextr[he][1] << std::endl;
@@ -27,9 +26,7 @@ void CreateObjData::createData() {
     resetVertexStatus();
     writeVertices(mapVertexIdx);
     resetVertexStatus();
-//    writeTexCoords(mapTexCoordToIdx);
-//    resetVertexStatus();
-    writeFaces(mapVertexIdx, mapTexCoordToIdx);
+    writeFaces(mapVertexIdx);
     resetVertexStatus();
 }
 

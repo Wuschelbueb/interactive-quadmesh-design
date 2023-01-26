@@ -21,7 +21,7 @@
        <item>
         <widget class="QDoubleSpinBox" name="dijkstra_distance">
          <property name="prefix">
-          <string>set distance = </string>
+          <string>size of selection = </string>
          </property>
          <property name="suffix">
           <string/>
@@ -37,13 +37,19 @@
        <item>
         <widget class="QDoubleSpinBox" name="hValue">
          <property name="prefix">
-          <string>h = </string>
+          <string>quad size = </string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
          </property>
          <property name="minimum">
-          <double>0.100000000000000</double>
+          <double>0.010000000000000</double>
          </property>
          <property name="singleStep">
           <double>0.020000000000000</double>
+         </property>
+         <property name="stepType">
+          <enum>QAbstractSpinBox::DefaultStepType</enum>
          </property>
         </widget>
        </item>
@@ -53,34 +59,34 @@
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <layout class="QGridLayout" name="gridLayout">
+         <item row="2" column="1">
+          <widget class="QPushButton" name="saveObjectFileButton">
+           <property name="text">
+            <string>4. Save Object</string>
+           </property>
+          </widget>
+         </item>
          <item row="0" column="0">
           <widget class="QPushButton" name="selectionButton">
            <property name="text">
-            <string>1. Select</string>
+            <string>1. Selection</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
+         <item row="0" column="1">
           <widget class="QPushButton" name="calculationButton">
            <property name="text">
-            <string>3. Calculate</string>
+            <string>3. Calculation</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
+         <item row="2" column="0">
           <widget class="QPushButton" name="previewButton">
            <property name="text">
             <string>2. Preview</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QPushButton" name="saveObjectFileButton">
-           <property name="text">
-            <string>4. Save Object</string>
            </property>
           </widget>
          </item>

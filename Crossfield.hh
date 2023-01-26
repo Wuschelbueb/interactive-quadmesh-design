@@ -326,11 +326,21 @@ private:
     std::vector<int> &heConstraints_;
     ACG::Vec3d refVector_;
 
-
+    /**
+     * constraint the cross field idx for faces in the selection such that the singularities have to be on the border
+     * @param heKappa he kappa map
+     * @param counter row position in constraint matrix
+     * @param pj_start column start position for pj
+     * @param _constraints constraint matrix
+     * @param faces faces vector
+     */
     void getCrossFldIdxConstraints(const std::map<int, double> &heKappa, int &counter, const int pj_start,
                                    gmm::row_matrix<gmm::wsvector<double>> &_constraints,
                                    const std::vector<int> &faces);
 
+    /**
+    * color vertices depending if they are in selection, on the edge or outside
+    */
     void colorVertices(const std::vector<int> &faces);
 };
 
