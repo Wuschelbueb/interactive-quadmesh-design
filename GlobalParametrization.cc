@@ -427,9 +427,15 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle 
         sum += CrossFieldAxis[j] * basisTransformationMtx[adjFace](j, col);
     }
     //check if U or V position is needed
-    int UVPos = (flagUorV) ? vertexPosUi[vh] : vertexPosVi[vh];
+//    int UVPos = (flagUorV) ? vertexPosUi[vh] : vertexPosVi[vh];
+    if (flagUorV) {
+        int UVPos = vertexPosUi[vh];
+        _rhs[UVPos + posAppearance] += 2 * area * quadsU * sum;
+    } else {
+        int UVPos = vertexPosVi[vh];
+        _rhs[UVPos + posAppearance] += 2 * area * quadsV * sum;
+    }
 //        std::cout << "position of vertex " << fv_it->idx() << " is " << UVPos + posAppearance << std::endl;
-    _rhs[UVPos + posAppearance] += 2 * area * hVal * sum;
 }
 
 //map U coordinates to vertices
@@ -496,8 +502,8 @@ void GlobalParametrization::getDiaEntriesHessian(const OpenMesh::SmartHalfedgeHa
     for (int j = 0; j < 3; ++j) {
         sum += transformationMatrix(j, col) * transformationMatrix(j, col);
     }
-    _hessian(vertexPosUi[vh] + posOne, vertexPosUi[vh] + posOne) += 2 * weight * area * pow(hVal, 2) * sum;
-    _hessian(vertexPosVi[vh] + posOne, vertexPosVi[vh] + posOne) += 2 * weight * area * pow(hVal, 2) * sum;
+    _hessian(vertexPosUi[vh] + posOne, vertexPosUi[vh] + posOne) += 2 * weight * area * pow(quadsU, 2) * sum;
+    _hessian(vertexPosVi[vh] + posOne, vertexPosVi[vh] + posOne) += 2 * weight * area * pow(quadsV, 2) * sum;
 }
 
 void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandle he, CMatrixType &_hessian) {
@@ -536,13 +542,13 @@ void GlobalParametrization::getEntriesHessian(const OpenMesh::SmartHalfedgeHandl
 //                std::cout << sum << "\t";
     }
 //            std::cout << "\n";
-    // u position
-    _hessian(vertexPosUi[vh_i] + posOne, vertexPosUi[vh_j] + posTwo) += 2 * weight * area * pow(hVal, 2) * sum;
-    _hessian(vertexPosUi[vh_j] + posTwo, vertexPosUi[vh_i] + posOne) += 2 * weight * area * pow(hVal, 2) * sum;
+// u position
+    _hessian(vertexPosUi[vh_i] + posOne, vertexPosUi[vh_j] + posTwo) += 2 * weight * area * pow(quadsU, 2) * sum;
+    _hessian(vertexPosUi[vh_j] + posTwo, vertexPosUi[vh_i] + posOne) += 2 * weight * area * pow(quadsU, 2) * sum;
 
     // v position
-    _hessian(vertexPosVi[vh_i] + posOne, vertexPosVi[vh_j] + posTwo) += 2 * weight * area * pow(hVal, 2) * sum;
-    _hessian(vertexPosVi[vh_j] + posTwo, vertexPosVi[vh_i] + posOne) += 2 * weight * area * pow(hVal, 2) * sum;
+    _hessian(vertexPosVi[vh_i] + posOne, vertexPosVi[vh_j] + posTwo) += 2 * weight * area * pow(quadsV, 2) * sum;
+    _hessian(vertexPosVi[vh_j] + posTwo, vertexPosVi[vh_i] + posOne) += 2 * weight * area * pow(quadsV, 2) * sum;
 //    std::cout << "hessian U val (" << vertexPosUi[vh_i] + posOne << "," << vertexPosUi[vh_j] + posTwo << ") "
 //              << _hessian(vertexPosUi[vh_i] + posOne, vertexPosUi[vh_j] + posTwo) << std::endl;
 }

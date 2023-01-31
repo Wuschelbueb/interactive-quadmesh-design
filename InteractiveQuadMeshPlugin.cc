@@ -119,7 +119,6 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
                     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
                          o_it != PluginFunctions::objectsEnd(); ++o_it) {
                         auto tri_obj = PluginFunctions::triMeshObject(*o_it);
-                        auto trimesh = tri_obj->mesh();
                         ACG::SceneGraph::LineNode *lineNode;
                         //create line node    connect(tool_->calculationButton, SIGNAL(clicked()), this, SLOT(slot_calculate_quad_mesh()));
 
@@ -135,7 +134,7 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
                             lineNode->set_line_width(3);
                             lineNode->add_line(selectedVertexAsPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
-                            clickedPoint = hitPoint;
+                            clickedPointU = hitPoint;
                         } else {
                             //creates the line
                             lineNode->clear_points();
@@ -143,7 +142,51 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
                             lineNode->set_line_width(3);
                             lineNode->add_line(selectedVertexAsPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
-                            clickedPoint = hitPoint;
+                            clickedPointU = hitPoint;
+                        }
+                    }
+                } else {
+                    emit log(LOGINFO, "Picking failed");
+                }
+            }
+            return;
+        }
+        if (_event->button() == Qt::MiddleButton) {
+            size_t node_idx, target_idx;
+            OpenMesh::Vec3d hitPoint;
+            // Get picked object's identifier
+            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_ANYTHING, _event->pos(), node_idx,
+                                                target_idx, &hitPoint)) {
+                BaseObjectData *object;
+                // Get picked object
+                if (PluginFunctions::getPickedObject(node_idx, object)) {
+                    for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
+                         o_it != PluginFunctions::objectsEnd(); ++o_it) {
+                        auto tri_obj = PluginFunctions::triMeshObject(*o_it);
+                        ACG::SceneGraph::LineNode *lineNode;
+                        //create line node    connect(tool_->calculationButton, SIGNAL(clicked()), this, SLOT(slot_calculate_quad_mesh()));
+
+                        if (!tri_obj->getAdditionalNode(lineNode, name(), "Second Direction")) {
+                            lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
+                                                                     tri_obj->manipulatorNode(),
+                                                                     "Second Direction");
+                            tri_obj->addAdditionalNode(lineNode, name(), "Second Direction");
+
+                            //creates the line
+                            lineNode->clear_points();
+                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+                            lineNode->set_line_width(3);
+                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->alwaysOnTop() = true;
+                            clickedPointV = hitPoint;
+                        } else {
+                            //creates the line
+                            lineNode->clear_points();
+                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+                            lineNode->set_line_width(3);
+                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->alwaysOnTop() = true;
+                            clickedPointV = hitPoint;
                         }
                     }
                 } else {
@@ -184,7 +227,34 @@ void InteractiveQuadMeshPlugin::slotUpdateTexture(QString _textureName, int _ide
 }
 
 void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
-    const double refDist = tool_->dijkstra_distance->value();
+    elementM = tool_->sizeM->value();
+    elementN = tool_->sizeN->value();
+    refVectorU = clickedPointU - selectedVertexAsPoint;
+    refVectorV = clickedPointV - selectedVertexAsPoint;
+    double angle = acos((refVectorU | refVectorV) / refVectorU.norm() * refVectorV.norm());
+    double restAngle;
+    // step one calculate length of quads
+    if (angle > M_PI / 2) {
+        restAngle = angle - M_PI / 2;
+    } else {
+        restAngle = M_PI / 2 - angle;
+    }
+    refVectorVLengthAt90Deg = cos(restAngle) * refVectorV.norm();
+    double distanceU = elementM * refVectorU.norm();
+    double distanceV = elementN * refVectorVLengthAt90Deg;
+
+    if (distanceU > distanceV) {
+        refDist = distanceU * 1.5;
+        std::cout << "distance U (" << elementM << ") " << distanceU << std::endl;
+    } else {
+        refDist = distanceV * 1.5;
+        std::cout << "distance V (" << elementN << ") " << distanceV << std::endl;
+    }
+    std::cout << "refVector U " << refVectorU.norm()
+              << "\nrefVector V " << refVectorV.norm()
+              << "\nangle " << angle
+              << "\nrestAngle " << restAngle
+              << "\nactuallength " << refVectorVLengthAt90Deg << std::endl;
 //    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
     const bool inclBoundaryF = false;
     PluginFunctions::actionMode(Viewer::ExamineMode);
@@ -215,7 +285,7 @@ void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
 }
 
 void InteractiveQuadMeshPlugin::slot_calculate_quad_mesh() {
-    const double hValue = tool_->hValue->value();
+//    const double hValue = tool_->hValue->value();
 
     for (PluginFunctions::ObjectIterator o_it(PluginFunctions::TARGET_OBJECTS, DATA_TRIANGLE_MESH);
          o_it != PluginFunctions::objectsEnd(); ++o_it) {
@@ -226,24 +296,15 @@ void InteractiveQuadMeshPlugin::slot_calculate_quad_mesh() {
         PluginFunctions::actionMode(Viewer::ExamineMode);
         auto quadTextr = OpenMesh::HProp<OpenMesh::Vec2d>(*trimesh, "quadTextr");
         auto heColor = OpenMesh::HProp<int>(*trimesh, "heColor");
-        refVector = clickedPoint - selectedVertexAsPoint;
 
         if (trimesh) {
             objData.clear();
-            Crossfield crossFieldMesh{*trimesh, includedHalfedges, originHalfedges, refVector};
+            Crossfield crossFieldMesh{*trimesh, includedHalfedges, originHalfedges, refVectorU};
             crossFieldMesh.getCrossfield();
-            ACG::SceneGraph::LineNode *lineNode;
-            if (tri_obj->getAdditionalNode(lineNode, name(), "Cross field direction")) {
-                lineNode = new ACG::SceneGraph::LineNode(ACG::SceneGraph::LineNode::LineSegmentsMode,
-                                                         tri_obj->manipulatorNode(),
-                                                         "Cross field direction");
-                tri_obj->removeAdditionalNode(lineNode, name(), "Cross field direction");
-            }
-
-            std::string initData = getNumberOfQuads(selectedVertexAsPoint, clickedPoint, hValue, *trimesh);
+            std::string initData = setNbOfQuads(elementM, elementN);
             objData += initData;
 
-            GlobalParametrization gpMesh{*trimesh, hValue};
+            GlobalParametrization gpMesh{*trimesh, refVectorU.norm(), refVectorVLengthAt90Deg};
             gpMesh.getGlobalParam();
 
             Get2DTexture twoDimMesh{*trimesh};
@@ -281,58 +342,16 @@ void InteractiveQuadMeshPlugin::slot_save_object_file() {
         }
         QTextStream out(&file);
         out << QString::fromStdString(objData);
+
         file.close();
+        file.disconnect();
     }
 }
 
-std::string InteractiveQuadMeshPlugin::getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
-                                                        const double hValue, TriMesh &trimesh) {
-    auto vertexColor = OpenMesh::VProp<int>(trimesh, "vertexColor");
-    trimesh.request_vertex_status();
+std::string
+InteractiveQuadMeshPlugin::setNbOfQuads(const int elementsM, const int elementsN) {
     std::stringstream tempStream;
-    float minEuclideanDistance = INT_MAX;
-    float maxEuclideanDistance = -1000;
-    ACG::Vec3d minDistPoint;
-    ACG::Vec3d maxDistPoint;
-    for (auto vh: trimesh.vertices()) {
-        if (vertexColor[vh] != 1 || selectedVertex == vh) {
-            continue;
-        }
-//        for(auto vh_neigh: vh.vertices()) {
-//            if (vertexColor[vh_neigh] == 0 && !vh_neigh.tagged()) {
-//                std::cout << "vertex idx: " << vh_neigh.idx()
-//                << "\nand distance from selected Vertex: " << (selectedVertexAsPoint - trimesh.point(vh_neigh)).norm() << std::endl;
-//                trimesh.status(vh_neigh).set_tagged(true);
-//            }
-//        }
-        ACG::Vec3d tempDist = selectedVertexAsPoint - trimesh.point(vh);
-        if (tempDist.norm() < minEuclideanDistance) {
-            minEuclideanDistance = tempDist.norm();
-            minDistPoint = trimesh.point(vh);
-//            std::cout << "MIN euclidean distance of (" << selectedVertex.idx() << ") to (" << vh.idx() << ") is: "
-//                      << minEuclideanDistance << " and distance between points is " << tempDist.norm() << std::endl;
-        } else if (tempDist.norm() > maxEuclideanDistance) {
-            maxEuclideanDistance = tempDist.norm();
-//            std::cout << "MAX euclidean distance of (" << selectedVertex.idx() << ") to (" << vh.idx() << ") is: "
-//                      << maxEuclideanDistance << " and distance between points is " << tempDist.norm() << std::endl;
-        }
-    }
-    ACG::Vec3d a = selectedVertexAsPoint - minDistPoint, b = selectedVertexAsPoint - clickedPoint;
-    double dotProduct = a | b;
-    double angle = std::acos(dotProduct / (a.norm() * b.norm()));
-    double factor = -0.5 * std::cos(4 * angle) + 0.5;
-    double numerator = hValue * (1 + ((sqrt(2.0) - 1) * factor));
-//            std::cout << "minDistPoint " << a
-//                      << "\nclickedPoint " << b
-//                      << "\ndotProdcut " << dotProduct
-//                      << "\nangle " << angle << " deg: " << angle * 180 / M_PI
-//                      << "\nfactor " << factor << std::endl;
-    int numberQuads = 2 * std::floor(minEuclideanDistance / numerator);
-    numberQuads = (numberQuads > 6) ? numberQuads - 4 : numberQuads;
-//    double maxDist = hValue * sqrt(2) * numberQuads;
-//    std::cout << "number quads " << numberQuads << "\nminEuclideanDist " << minEuclideanDistance << std::endl;
-    tempStream << "# distance: " << minEuclideanDistance << "\n# nbQuads: " << numberQuads << std::endl;
-    trimesh.release_vertex_status();
+    tempStream << "# nbQuadsU: " << elementsM * 2 << "\n# nbQuadsV: " << elementsN * 2 << std::endl;
     return tempStream.str();
 }
 

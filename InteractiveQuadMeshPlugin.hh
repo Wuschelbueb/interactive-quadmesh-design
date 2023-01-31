@@ -130,22 +130,28 @@ private:
     // vector based on included faces
     std::vector<int> includedHalfedges;
     // point which gives direction of crossfield
-    ACG::Vec3d clickedPoint;
+    ACG::Vec3d clickedPointU;
+    ACG::Vec3d clickedPointV;
     // selected starting vertex
     OpenMesh::VertexHandle selectedVertex;
     // point of selectedVertex
     ACG::Vec3d selectedVertexAsPoint;
     // vector between selectedVertex and clickedPoint
-    ACG::Vec3d refVector;
+    ACG::Vec3d refVectorU;
+    ACG::Vec3d refVectorV;
+    double refVectorVLengthAt90Deg;
+    double refDist = 0;
     // stringstream containing .obj data
     std::string objData;
+
+    int elementM = 0;
+    int elementN = 0;
 
     /**
      * helper function which gets the number of quads which can be displayed
      * if the number is higher there is a chance that artifacts pop up.
      */
-    std::string getNumberOfQuads(const ACG::Vec3d selectedVertexAsPoint, const ACG::Vec3d clickedPoint,
-                                 const double hValue, TriMesh &trimesh);
+    std::string setNbOfQuads(const int elementsM, const int elementsN);
     // Last picked object
     int activeObject_;
 

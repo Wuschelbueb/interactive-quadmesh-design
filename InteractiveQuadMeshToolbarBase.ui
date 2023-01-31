@@ -18,40 +18,38 @@
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QDoubleSpinBox" name="dijkstra_distance">
-         <property name="prefix">
-          <string>size of selection = </string>
-         </property>
-         <property name="suffix">
-          <string/>
-         </property>
-         <property name="maximum">
-          <double>100000.000000000000000</double>
-         </property>
-         <property name="stepType">
-          <enum>QAbstractSpinBox::DefaultStepType</enum>
+       <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Number of Quads: </string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QDoubleSpinBox" name="hValue">
-         <property name="prefix">
-          <string>quad size = </string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="minimum">
-          <double>0.010000000000000</double>
-         </property>
-         <property name="singleStep">
-          <double>0.020000000000000</double>
-         </property>
-         <property name="stepType">
-          <enum>QAbstractSpinBox::DefaultStepType</enum>
+        <widget class="QSpinBox" name="sizeM"/>
+       </item>
+       <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>x</string>
          </property>
         </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="sizeN"/>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </item>
@@ -77,16 +75,16 @@
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="calculationButton">
+          <widget class="QPushButton" name="previewButton">
            <property name="text">
-            <string>3. Calculation</string>
+            <string>2. Preview</string>
            </property>
           </widget>
          </item>
          <item row="2" column="0">
-          <widget class="QPushButton" name="previewButton">
+          <widget class="QPushButton" name="calculationButton">
            <property name="text">
-            <string>2. Preview</string>
+            <string>3. Calculation</string>
            </property>
           </widget>
          </item>
@@ -98,6 +96,14 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>sizeM</tabstop>
+  <tabstop>sizeN</tabstop>
+  <tabstop>selectionButton</tabstop>
+  <tabstop>previewButton</tabstop>
+  <tabstop>calculationButton</tabstop>
+  <tabstop>saveObjectFileButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

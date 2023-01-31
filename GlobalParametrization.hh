@@ -42,8 +42,8 @@ public:
      *      heInRange_ = heInRange;
      * }
      */
-    GlobalParametrization(TriMesh &trimesh, const double &hValue)
-            : trimesh_{trimesh}, hVal{hValue} {
+    GlobalParametrization(TriMesh &trimesh,const double &quadSizeU, const double &quadSizeV)
+            : trimesh_{trimesh}, quadsU{quadSizeU}, quadsV{quadSizeV} {
     }
 
     ~GlobalParametrization() {
@@ -57,7 +57,8 @@ public:
 private:
 
     TriMesh &trimesh_;
-    const double &hVal;
+    const double quadsU;
+    const double quadsV;
 
     /**
      * get faces part of the selection.\n
