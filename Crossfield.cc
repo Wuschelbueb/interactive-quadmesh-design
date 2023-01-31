@@ -210,7 +210,7 @@ void Crossfield::getCrossFldIdxConstraints(const std::map<int, double> &heKappa,
     for (const auto &it: heKappa) {
         double intValBaseIdx = 0, sumKappa = 0, angleDefect = 0;
         OpenMesh::SmartHalfedgeHandle he = make_smart(trimesh_.halfedge_handle(it.first), trimesh_);
-        if (trimesh_.status(he.to()).tagged() || trimesh_.is_boundary(he.to()) || vertexColor == 1) {
+        if (trimesh_.status(he.to()).tagged() || trimesh_.is_boundary(he.to()) || vertexColor[he.to()] == 1) {
             continue;
         }
 //        std::cout << "START, he idx: " << he.to().idx() << std::endl;
