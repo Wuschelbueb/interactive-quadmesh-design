@@ -179,55 +179,49 @@ void GlobalParametrization::colorCompBoundaries(std::vector<int> &onlyBoundaries
     }
 }
 
-std::vector<int> GlobalParametrization::getComplementMeshSel() {
+std::vector<int> GlobalParametrization::getComplementMeshSel(std::vector<int> &faces) {
+    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
     trimesh_.request_halfedge_status();
     for (auto heh: trimesh_.halfedges()) {
         trimesh_.status(heh).set_tagged(false);
     }
     std::vector<int> complementHEdges;
-    tagEdgesFromDualSpanningTree();
-    for (const auto &heh: trimesh_.halfedges()) {
-        if (!trimesh_.status(heh).tagged()) {
-            complementHEdges.push_back(heh.idx());
+    tagEdgesFromDualSpanningTree(faces);
+    for (auto i: faces) {
+        auto fh = make_smart(trimesh_.face_handle(i), trimesh_);
+        for (auto he: fh.halfedges()) {
+            if (borderDualG[he.edge()] == 1) {
+                complementHEdges.push_back(he.idx());
+                continue;
+            }
+            if (!he.tagged()) {
+                complementHEdges.push_back(he.idx());
+                continue;
+            }
         }
     }
     trimesh_.release_halfedge_status();
     return complementHEdges;
 }
 
-void GlobalParametrization::tagEdgesFromDualSpanningTree() {
-    for (auto face: trimesh_.faces()) {
-        checkIfFaceInSelection(face);
+void GlobalParametrization::tagEdgesFromDualSpanningTree(std::vector<int> &faces) {
+    std::vector<int>::iterator it;
+    for (it = faces.begin() + 1; it != faces.end(); ++it) {
+        auto fh = make_smart(trimesh_.face_handle(*it), trimesh_);
+        checkIfFaceInSelection(fh);
     }
 }
 
-void GlobalParametrization::checkIfFaceInSelection(OpenMesh::FaceHandle &face) {
+void GlobalParametrization::checkIfFaceInSelection(OpenMesh::SmartFaceHandle &face) {
     auto dualGraphPred = OpenMesh::FProp<int>(trimesh_, "dualGraphPred");
-    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
-    if (dualGraphPred[face] != INT_MAX && dualGraphPred[face] != face.idx() && faceSel[face]) {
-        OpenMesh::FaceHandle fh_pre = trimesh_.face_handle(dualGraphPred[face]);
-        checkIfEBetweenTriangleInDualGraph(face, fh_pre);
-
-    }
-}
-
-void
-GlobalParametrization::checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &face, OpenMesh::FaceHandle &fh_pred) {
-    for (TriMesh::FaceHalfedgeIter fhe_it = trimesh_.fh_iter(face); fhe_it.is_valid(); ++fhe_it) {
-        OpenMesh::HalfedgeHandle oheh = trimesh_.opposite_halfedge_handle(*fhe_it);
-        for (TriMesh::FaceHalfedgeIter fhe_pred_it = trimesh_.fh_iter(
-                fh_pred); fhe_pred_it.is_valid(); ++fhe_pred_it) {
-            tagEdgeIfInDualGraph(fhe_pred_it, oheh);
+    OpenMesh::SmartFaceHandle fh_pre = make_smart(trimesh_.face_handle(dualGraphPred[face]), trimesh_);
+    for (auto fe_it: face.edges()) {
+        for (auto fpe_it: fh_pre.edges()) {
+            if (fe_it.idx() == fpe_it.idx()) {
+                trimesh_.status(fe_it.halfedge(0)).set_tagged(true);
+                trimesh_.status(fe_it.halfedge(1)).set_tagged(true);
+            }
         }
-    }
-}
-
-void
-GlobalParametrization::tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh) {
-    if ((fhe_pred_it->idx() == oheh.idx())) {
-        auto heh = trimesh_.opposite_halfedge_handle(oheh);
-        trimesh_.status(oheh).set_tagged(true);
-        trimesh_.status(heh).set_tagged(true);
     }
 }
 

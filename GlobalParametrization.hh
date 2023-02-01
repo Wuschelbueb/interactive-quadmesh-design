@@ -260,7 +260,7 @@ private:
      * add to cutgraph if edges aren't tagged, i.e. not part of dual spanning tree graph.\n
      * @return vector of halfedges
      */
-    std::vector<int> getComplementMeshSel();
+    std::vector<int> getComplementMeshSel(std::vector<int> &faces);
 
     /**
      * removes leaf paths, i.e. vertices in cutgraph with valence 1
@@ -285,29 +285,14 @@ private:
      * helper function of getComplementMeshSel.\n
      * iterates through faces and calls checkIfFaceInSelection.\n
      */
-    void tagEdgesFromDualSpanningTree();
+    void tagEdgesFromDualSpanningTree(std::vector<int> &faces);
 
     /**
      * calls checkIfEBetweenTriangleInDualGraph.\n
      * if face is in selection and the dual graph pred is valid.\n
      * @param face face handle
      */
-    void checkIfFaceInSelection(OpenMesh::FaceHandle &face);
-
-    /**
-     * calls checkIfEBetweenTriangleInDualGraph.\n
-     * iterates through both triangles (face, fh_pred)
-     * @param face face handle
-     * @param fh_pred parent face of dual spanning tree face
-     */
-    void checkIfEBetweenTriangleInDualGraph(OpenMesh::FaceHandle &face, OpenMesh::FaceHandle &fh_pred);
-
-    /**
-     * tag both halfedges if they are opposite of each other.\n
-     * @param fhe_pred_it halfedge of fh_pred
-     * @param oheh opposite halfedge of face's halfedge
-     */
-    void tagEdgeIfInDualGraph(TriMesh::FaceHalfedgeIter &fhe_pred_it, OpenMesh::HalfedgeHandle &oheh);
+    void checkIfFaceInSelection(OpenMesh::SmartFaceHandle &face);
 
     /**
      * create sectors on cutgraph in order to know how many times a vertex appears on cutgraph.\n
