@@ -245,16 +245,9 @@ void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
 
     if (distanceU > distanceV) {
         refDist = distanceU * 1.5;
-        std::cout << "distance U (" << elementM << ") " << distanceU << std::endl;
     } else {
         refDist = distanceV * 1.5;
-        std::cout << "distance V (" << elementN << ") " << distanceV << std::endl;
     }
-    std::cout << "refVector U " << refVectorU.norm()
-              << "\nrefVector V " << refVectorV.norm()
-              << "\nangle " << angle
-              << "\nrestAngle " << restAngle
-              << "\nactuallength " << refVectorVLengthAt90Deg << std::endl;
 //    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
     const bool inclBoundaryF = false;
     PluginFunctions::actionMode(Viewer::ExamineMode);

@@ -46,10 +46,12 @@ signals:
 
     //PickingInterface
     void addPickMode(const std::string &_mode);
+
     void addHiddenPickMode(const std::string &_mode);
 
     //LoggingInterface
     void log(Logtype _type, QString _message);
+
     void log(QString _message);
 
     // ToolboxInterface
@@ -60,13 +62,18 @@ signals:
 
     // BackupInterface
     void createBackup(int _objectid, QString _name, UpdateType _type = UPDATE_ALL);
+
     void updatedObject(int _id, const UpdateType &_type);
 
     // Texture Interface
-    void addTexture( QString _textureName , QString _filename , uint dimension );
-    void updatedTextures( QString , int );
-    void setTextureMode(QString _textureName ,QString _mode);
+    void addTexture(QString _textureName, QString _filename, uint dimension);
+
+    void updatedTextures(QString, int);
+
+    void setTextureMode(QString _textureName, QString _mode);
+
     void switchTexture(QString _textureName);
+
     void switchTexture(QString _textureName, int _id);
 
 
@@ -74,13 +81,14 @@ private slots:
 
     // BaseInterface
     void initializePlugin();
+
     void pluginsInitialized();
 
     // MouseInterface
     void slotMouseEvent(QMouseEvent *_event);
 
     // Update texture
-    void slotUpdateTexture( QString _textureName , int _identifier );
+    void slotUpdateTexture(QString _textureName, int _identifier);
 
     //PickingInterface
     void slotPickModeChanged(const std::string &_mode);
@@ -112,7 +120,7 @@ public slots:
     /**
      * select a point for crossfield
      */
-     void slot_select_point();
+    void slot_select_point();
 
     /**
      * open dialog to save obj file
@@ -139,7 +147,7 @@ private:
     // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVectorU;
     ACG::Vec3d refVectorV;
-    double refVectorVLengthAt90Deg;
+    double refVectorVLengthAt90Deg = 1.0;
     double refDist = 0;
     // stringstream containing .obj data
     std::string objData;
@@ -152,6 +160,7 @@ private:
      * if the number is higher there is a chance that artifacts pop up.
      */
     std::string setNbOfQuads(const int elementsM, const int elementsN);
+
     // Last picked object
     int activeObject_;
 
