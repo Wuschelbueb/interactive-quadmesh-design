@@ -162,6 +162,7 @@ void GlobalParametrization::colorCompBoundaries(std::vector<int> &onlyBoundaries
 
 std::vector<int> GlobalParametrization::getComplementMeshSel(std::vector<int> &faces) {
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
+    auto dualGraphComplement = OpenMesh::HProp<bool>(trimesh_, "dualGraphComplement");
     trimesh_.request_halfedge_status();
     for (auto heh: trimesh_.halfedges()) {
         trimesh_.status(heh).set_tagged(false);
@@ -173,10 +174,14 @@ std::vector<int> GlobalParametrization::getComplementMeshSel(std::vector<int> &f
         for (auto he: fh.halfedges()) {
             if (borderDualG[he.edge()] == 1) {
                 complementHEdges.push_back(he.idx());
+                complementHEdges.push_back(he.opp().idx());
+                dualGraphComplement[he] = true;
+                dualGraphComplement[he.opp()] = true;
                 continue;
             }
             if (!he.tagged()) {
                 complementHEdges.push_back(he.idx());
+                dualGraphComplement[he] = true;
                 continue;
             }
         }
