@@ -131,7 +131,7 @@ void DijkstraDistance::getDualGraph(const std::vector<int> &faces) {
     trimesh_.request_face_status();
     initDualGraphProp(faces);
     calculateDGDijkstra(faces);
-    colorDualGraph();
+    colorDualGraph(faces);
     trimesh_.release_face_status();
 }
 
@@ -197,41 +197,22 @@ int DijkstraDistance::dualGraphGetSmallestDist(const std::vector<int> &faces) {
     return idx;
 }
 
-void DijkstraDistance::colorDualGraph() {
+void DijkstraDistance::colorDualGraph(const std::vector<int> &faces) {
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
+    auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
-    for (const auto &fh: trimesh_.faces()) {
-        for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
-            // border of 3d object
-            if (fh.is_boundary() && (dualGraphOrigin[fh] != INT_MAX)) {
-                for (TriMesh::FaceEdgeIter fhe_it = trimesh_.fe_iter(fh); fhe_it.is_valid(); ++fhe_it) {
-                    if (fhe_it->is_boundary()) {
-                        borderDualG[*fhe_it] = 1;
-                    }
-                }
+    for(auto &i: faces) {
+        auto fh = make_smart(trimesh_.face_handle(i),trimesh_);
+        for(auto fhe_it: fh.halfedges()) {
+            if(fhe_it.opp().is_boundary()) {
+                borderDualG[fhe_it.edge()] = 1;
+                continue;
             }
-            // border of selection
-            if (dualGraphOrigin[fh] != dualGraphOrigin[*ff_it]) {
-                searchComEBetweenF(fh, *ff_it, 1);
-                // inside dual graph
-            } else if ((dualGraphOrigin[fh] == dualGraphOrigin[*ff_it]) && (dualGraphOrigin[fh] != INT_MAX)) {
-                searchComEBetweenF(fh, *ff_it, 2);
-                // outside dual graph
-            } else {
-                searchComEBetweenF(fh, *ff_it, 3);
+            if (!faceSel[fhe_it.opp().face()]) {
+                borderDualG[fhe_it.edge()] = 1;
+                continue;
             }
-        }
-    }
-}
-
-void DijkstraDistance::searchComEBetweenF(const OpenMesh::FaceHandle fh, const OpenMesh::SmartFaceHandle fh2,
-                                          const int color) {
-    auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
-    for (TriMesh::FaceEdgeIter fe_it = trimesh_.fe_iter(fh); fe_it.is_valid(); ++fe_it) {
-        for (TriMesh::FaceEdgeIter fe2_it = trimesh_.fe_iter(fh2); fe2_it.is_valid(); ++fe2_it) {
-            if (fe_it->idx() == fe2_it->idx()) {
-                borderDualG[*fe_it] = color;
-            }
+            borderDualG[fhe_it.edge()] = 2;
         }
     }
 }

@@ -98,15 +98,7 @@ private:
      * 2 is for the selection inside the border\n
      * 3 is for the selection outside of the border
      */
-    void colorDualGraph();
-
-    /**
-     * helper function for colorDualGraph. colorizes common edge between face "fh" and face "fh1"\n
-     * @param fh
-     * @param fh2
-     * @param color based on requirements in colorDualGraph() function
-     */
-    void searchComEBetweenF(const OpenMesh::FaceHandle fh, const OpenMesh::SmartFaceHandle fh2, const int color);
+    void colorDualGraph(const std::vector<int> &faces);
 
     /**
      * initialize different properties which get used to create the DualGraph
