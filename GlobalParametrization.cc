@@ -89,69 +89,50 @@ std::vector<int> GlobalParametrization::getSingularities(std::vector<int> &faces
 }
 
 void GlobalParametrization::removeOpenPaths(std::vector<int> &complementHEdges) {
+    auto dualGraphComplement = OpenMesh::HProp<bool>(trimesh_, "dualGraphComplement");
     trimesh_.request_halfedge_status();
     int currentIter = complementHEdges.size(), prevIter = INT_MAX;
+    std::vector<int> leafEdges;
+
     while (currentIter != prevIter) {
         for (const int &i: complementHEdges) {
-            removeEdgeFromGraph(i, complementHEdges);
+            OpenMesh::SmartHalfedgeHandle he = make_smart(trimesh_.halfedge_handle(i), trimesh_);
+            int counter = 0;
+            for (auto voh_it: he.to().outgoing_halfedges()) {
+                if (dualGraphComplement[voh_it]) {
+                    counter++;
+                }
+            }
+            //valence check
+            if (counter == 1) {
+                leafEdges.push_back(he.idx());
+                leafEdges.push_back(he.opp().idx());
+            }
         }
         prevIter = currentIter;
+        for (const int &leafEdge: leafEdges) {
+            complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), leafEdge),
+                                   complementHEdges.end());
+        }
+        leafEdges.clear();
         currentIter = complementHEdges.size();
     }
     trimesh_.release_halfedge_status();
 }
 
-void GlobalParametrization::removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges) {
-    OpenMesh::HalfedgeHandle he = trimesh_.halfedge_handle(i);
-    OpenMesh::HalfedgeHandle ohe = trimesh_.opposite_halfedge_handle(he);
-    OpenMesh::VertexHandle vh = trimesh_.to_vertex_handle(he);
-    int counter = 0;
-    for (TriMesh::VertexOHalfedgeIter voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
-        if ((std::find(complementHEdges.begin(), complementHEdges.end(), voh_it->idx()) != complementHEdges.end())) {
-            counter++;
-        }
-    }
-    //valence check
-    if (counter == 1) {
-        complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), he.idx()),
-                               complementHEdges.end());
-        complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), ohe.idx()),
-                               complementHEdges.end());
-    }
-}
-
-void GlobalParametrization::removeRedundantEdges(std::vector<int> &complementHEdges) {
+void GlobalParametrization::removeRedundantEdges(std::vector<int> &complementHEdges, std::vector<int> &faces) {
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
+    auto dualGraphComplement = OpenMesh::HProp<bool>(trimesh_, "dualGraphComplement");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
-    for (const auto &eh: trimesh_.edges()) {
-        auto heh = make_smart(trimesh_.halfedge_handle(eh, 1), trimesh_);
-        auto oheh = make_smart(trimesh_.halfedge_handle(eh, 0), trimesh_);
-        auto iter1 = std::find(complementHEdges.begin(), complementHEdges.end(), heh.idx());
-        auto iter2 = std::find(complementHEdges.begin(), complementHEdges.end(), oheh.idx());
-        // 1 = border of selection, 2 = dual graph, 3 = non-dual graph
-        bool checkHeCompForIter1 = iter1 != complementHEdges.end();
-        bool checkHeCompForIter2 = iter2 != complementHEdges.end();
-        bool borderFalse = borderDualG[eh] != 1;
-        bool borderTrue = borderDualG[eh] == 1;
-        bool checkFaceSelection = heh.face().is_valid() && !faceSel[heh.face()];
-        bool checkOppFaceSelection = oheh.face().is_valid() && !faceSel[oheh.face()];
-        bool heIsBoundary = heh.is_boundary();
-        bool oheIsBoundary = oheh.is_boundary();
-        if (borderFalse) {
-            if (checkHeCompForIter1 || checkHeCompForIter2) {
-                complementHEdges.erase(iter1);
-                complementHEdges.erase(iter2);
-            }
-        } else if (borderTrue) {
-            if (checkHeCompForIter1) {
-                if (checkFaceSelection || heIsBoundary) {
-                    complementHEdges.erase(iter1);
-                }
-            }
-            if (checkHeCompForIter2) {
-                if (checkOppFaceSelection || oheIsBoundary) {
-                    complementHEdges.erase(iter2);
-                }
+    for (auto &i: faces) {
+        auto fh = make_smart(trimesh_.face_handle(i), trimesh_);
+        for (auto he: fh.halfedges()) {
+            if(borderDualG[he.edge()] == 1 && dualGraphComplement[he.opp()]) {
+                complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), he.opp().idx()),
+                                       complementHEdges.end());
+            } else if(borderDualG[he.edge()] != 1 && dualGraphComplement[he]) {
+                complementHEdges.erase(std::remove(complementHEdges.begin(), complementHEdges.end(), he.idx()),
+                                       complementHEdges.end());
             }
         }
     }
