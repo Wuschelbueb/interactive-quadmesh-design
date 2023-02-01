@@ -353,7 +353,7 @@ gmm::col_matrix<std::vector<double>> GlobalParametrization::createMatrix3v3() {
 }
 
 std::vector<double>
-GlobalParametrization::getRhs(const int rhsSizePartOne, const int rhsSizePartTwo) {
+GlobalParametrization::getRhs(const int rhsSizePartOne, const int rhsSizePartTwo, const std::vector<int> &faces) {
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto cutGraphFZone = OpenMesh::FProp<int>(trimesh_, "cutGraphFZone");
     auto uVectorFieldRotOne = OpenMesh::FProp<Point>(trimesh_, "uVectorFieldRotOne");
@@ -363,8 +363,9 @@ GlobalParametrization::getRhs(const int rhsSizePartOne, const int rhsSizePartTwo
 //    std::ofstream vectorFieldRot("/home/wuschelbueb/Desktop/data/vectorFieldRot.txt");
     // use nbVerticesUaV and lhs formulas with dkm -> dkm is entry in D matrix
     // utk is entry of vectorRotOne
-    for (const auto &he: trimesh_.halfedges()) {
-        if (!trimesh_.is_boundary(he) && faceSel[he.face()]) {
+    for (auto &i: faces) {
+        auto fh = make_smart(trimesh_.face_handle(i),trimesh_);
+        for(auto he: fh.halfedges()) {
             Point uCrossField = uVectorFieldRotOne[he.face()];
             Point vCrossField = uVectorFieldRotTwo[he.face()];
 //            vectorFieldRot << "Face " << he.face().idx() << " = [[" << uCrossField << "],[" << vCrossField << "]]\n";
