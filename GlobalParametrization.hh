@@ -132,7 +132,7 @@ private:
      * @param rhsSizePartTwo nb of jk Values; based on the number of halfedges in cutgraph.
      * @return vector with rhs values.
      */
-    std::vector<double> getRhs(const int rhsSizePartOne, const int rhsSizePartTwo);
+    std::vector<double> getRhs(const int rhsSizePartOne, const int rhsSizePartTwo, const std::vector<int> &faces);
 
     /**
      * get entry for each vertex.\n
@@ -272,14 +272,7 @@ private:
      * remove border edges which aren't part of dual graph.
      * @param complementHEdges vector of halfedges
      */
-    void removeRedundantEdges(std::vector<int> &complementHEdges);
-
-    /**
-     * helper function of removeOpenPaths. removes an edge which is in cutgraph and adjoins a vertex with valence 1.\n
-     * @param i halfedge
-     * @param complementHEdges vector of halfedges
-     */
-    void removeEdgeFromGraph(const int i, std::vector<int> &complementHEdges);
+    void removeRedundantEdges(std::vector<int> &complementHEdges, std::vector<int> &faces);
 
     /**
      * helper function of getComplementMeshSel.\n

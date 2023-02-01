@@ -61,7 +61,7 @@ public:
      * @return
      */
     std::vector<int>
-    calculateDijkstra(const std::vector<int> HeConstraints, const double refDist, const bool includeBoundary);
+    calculateDijkstra(const std::vector<int> HeConstraints, const double refDist);
 
     /**
      * returns a vector of halfedges from dijkstra calculation .
@@ -151,14 +151,6 @@ private:
      */
     void addPathToCutGraph(std::vector<int> &cutGraphVertices, std::vector<int> &complementHEdges, const int i,
                            std::vector<int> &cutGraphWoBoundary);
-
-    /**
-     * includes faces which got cut by refDist but not included.\n
-     * adds the "border" faces to includedFaces.
-     * @param includedFaces vector of faces
-     * @param refDist reference Distance
-     */
-    void includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist);
 
     /**
      * transforms constraintHeh vector to a face vector. faces which are assigned to halfedges\n

@@ -218,15 +218,11 @@ void DijkstraDistance::colorDualGraph(const std::vector<int> &faces) {
 }
 
 std::vector<int>
-DijkstraDistance::calculateDijkstra(const std::vector<int> HeConstraints, const double refDist,
-                                    const bool includeBoundary) {
+DijkstraDistance::calculateDijkstra(const std::vector<int> HeConstraints, const double refDist) {
     auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
     std::vector<int> includedFaces;
     std::vector<int> constraintFaces = transformHehToFaces(HeConstraints);
     dijkstraDistBaryCenter(includedFaces, refDist);
-    if (includeBoundary) {
-        includeBoundaryFaces(includedFaces, refDist);
-    }
     return includedFaces;
 }
 
@@ -295,21 +291,6 @@ std::vector<int> DijkstraDistance::transformHehToFaces(const std::vector<int> &c
     }
     trimesh_.release_face_status();
     return constraintFaces;
-}
-
-void DijkstraDistance::includeBoundaryFaces(std::vector<int> &includedFaces, const double refDist) {
-    auto distanceBaryCenter = OpenMesh::FProp<double>(trimesh_, "distanceBaryCenter");
-    std::vector<int> tempFaces;
-    for (int i: includedFaces) {
-        OpenMesh::FaceHandle fh = trimesh_.face_handle(i);
-        for (TriMesh::FaceFaceIter ff_it = trimesh_.ff_iter(fh); ff_it.is_valid(); ++ff_it) {
-            if (distanceBaryCenter[*ff_it] != DBL_MAX
-                && distanceBaryCenter[*ff_it] >= refDist
-                && (std::find(includedFaces.begin(), includedFaces.end(), ff_it->idx()) == includedFaces.end())) {
-                includedFaces.push_back(ff_it->idx());
-            }
-        }
-    }
 }
 
 std::vector<int>
