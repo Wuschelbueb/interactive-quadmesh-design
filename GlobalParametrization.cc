@@ -74,17 +74,13 @@ std::vector<int> GlobalParametrization::getSingularities(std::vector<int> &faces
     for (const auto &i: faces) {
         auto fh = trimesh_.face_handle(i);
         for (auto fv_it = trimesh_.fv_iter(fh); fv_it.is_valid(); ++fv_it) {
-            if (crossFieldIdx[*fv_it] < -1E-1 || crossFieldIdx[*fv_it] > 1E-1) {
-                singularities.push_back(fv_it->idx());
+//            if (crossFieldIdx[*fv_it] < -1E-1 || crossFieldIdx[*fv_it] > 1E-1) {
+            if (crossFieldIdx[*fv_it] == 0) {
+                continue;
             }
+            singularities.push_back(fv_it->idx());
         }
     }
-//    for (auto vh: trimesh_.vertices()) {
-//        // try with != 0
-//        if (crossFieldIdx[vh] < -1E-1 || crossFieldIdx[vh] > 1E-1) {
-//            singularities.push_back(vh.idx());
-//        }
-//    }
     return singularities;
 }
 
@@ -288,7 +284,7 @@ void GlobalParametrization::setUpLocFaceCoordSys(const std::vector<int> &faces) 
 void
 GlobalParametrization::createEdgesAndLocalVUi(const OpenMesh::FaceHandle fh,
                                               std::vector<Point> &edges) {
-    auto localVUi = OpenMesh::FProp<std::vector<int>>(trimesh_, "localVUi");
+    auto localVUi = OpenMesh::FProp<std::vector<int >>(trimesh_, "localVUi");
     int counter = 0;
     for (TriMesh::FaceHalfedgeIter fh_it = trimesh_.fh_iter(fh); fh_it.is_valid(); ++fh_it) {
         if (counter == 0) {
@@ -422,7 +418,7 @@ GlobalParametrization::getRhsEntryForVertex(const OpenMesh::SmartHalfedgeHandle 
 //map U coordinates to vertices
 int
 GlobalParametrization::mapLocCoordToGlobCoordSys(const OpenMesh::FaceHandle fh, const OpenMesh::VertexHandle vh) {
-    auto localVUi = OpenMesh::FProp<std::vector<int>>(trimesh_, "localVUi");
+    auto localVUi = OpenMesh::FProp<std::vector<int >>(trimesh_, "localVUi");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     int column;
     if (vh.idx() == localVUi[fh][0]) {
