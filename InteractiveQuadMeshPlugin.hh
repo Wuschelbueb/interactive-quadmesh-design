@@ -135,6 +135,7 @@ private:
     InteractiveQuadMeshToolbar *tool_;
     //store outgoing he of selected Vertex
     std::vector<int> originHalfedges;
+    std::vector<int> originVertices;
     // vector based on included faces
     std::vector<int> includedHalfedges;
     // point which gives direction of crossfield
@@ -143,7 +144,7 @@ private:
     // selected starting vertex
     OpenMesh::VertexHandle selectedVertex;
     // point of selectedVertex
-    ACG::Vec3d selectedVertexAsPoint;
+    ACG::Vec3d selectedOriginPoint;
     // vector between selectedVertex and clickedPoint
     ACG::Vec3d refVectorU;
     ACG::Vec3d refVectorV;

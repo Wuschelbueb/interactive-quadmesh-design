@@ -63,51 +63,9 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
         PluginFunctions::actionMode() == Viewer::PickingMode &&
         tool_->selectionButton->isChecked()) {
         // handle mouse events
-        if (_event->button() == Qt::LeftButton) {
-            size_t node_idx, target_idx;
-            ACG::Vec3d hit_point;
-            // pick vertices
-            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_VERTEX, _event->pos(),
-                                                node_idx, target_idx, &hit_point)) {
-                BaseObjectData *obj;
-                if (PluginFunctions::getPickedObject(node_idx, obj)) {
-                    // is picked object a triangle mesh?
-                    TriMeshObject *tri_obj = PluginFunctions::triMeshObject(obj);
 
-                    if (tri_obj) {
-                        auto targetedVh = tri_obj->mesh()->vertex_handle(target_idx);
-                        selectedVertex = targetedVh;
-                        selectedVertexAsPoint = tri_obj->mesh()->point(targetedVh);
-                        if (targetedVh == TriMesh::InvalidVertexHandle) {
-                            return;
-                        }
-                        // size of selection
-                        tri_obj->materialNode()->set_point_size(18);
-                        // updates vertex selection and deselects old one
-                        for (auto vh: tri_obj->mesh()->vertices()) {
-                            if ((int) target_idx == vh.idx()) {
-                                tri_obj->mesh()->status(vh).set_selected(true);
-                                tri_obj->mesh()->set_color(vh, ACG::Vec4f(0, 1, 0, 1));
-                            } else {
-                                tri_obj->mesh()->status(vh).set_selected(false);
-                                tri_obj->mesh()->set_color(vh, ACG::Vec4f(1, 1, 1, 0));
-                            }
-                        }
-                        // visualization
-                        tri_obj->meshNode()->drawMode(ACG::SceneGraph::DrawModes::WIREFRAME
-                                                      | ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED |
-                                                      ACG::SceneGraph::DrawModes::POINTS_COLORED);
-
-                        tri_obj->materialNode()->enable_alpha_test(0.8);
-                        // updates color of vertices
-                        emit updatedObject(tri_obj->id(), UPDATE_COLOR);
-                        return;
-                    }
-                }
-            }
-        }
         // If double click has been performed
-        if (_event->type() == QEvent::MouseButtonDblClick) {
+        if (_event->button() == Qt::LeftButton && (_event->modifiers() & Qt::ControlModifier)) {
             size_t node_idx, target_idx;
             OpenMesh::Vec3d hitPoint;
             // Get picked object's identifier
@@ -130,17 +88,17 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
 
                             //creates the line
                             lineNode->clear_points();
-                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
+                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->add_line(selectedOriginPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPointU = hitPoint;
                         } else {
                             //creates the line
                             lineNode->clear_points();
-                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
+                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->add_line(selectedOriginPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPointU = hitPoint;
                         }
@@ -151,7 +109,7 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
             }
             return;
         }
-        if (_event->button() == Qt::MiddleButton) {
+        if (_event->button() == Qt::LeftButton && (_event->modifiers() & Qt::ShiftModifier)) {
             size_t node_idx, target_idx;
             OpenMesh::Vec3d hitPoint;
             // Get picked object's identifier
@@ -174,17 +132,17 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
 
                             //creates the line
                             lineNode->clear_points();
-                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->add_line(selectedOriginPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPointV = hitPoint;
                         } else {
                             //creates the line
                             lineNode->clear_points();
-                            lineNode->set_color(OpenMesh::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+                            lineNode->set_color(OpenMesh::Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
                             lineNode->set_line_width(3);
-                            lineNode->add_line(selectedVertexAsPoint, hitPoint);
+                            lineNode->add_line(selectedOriginPoint, hitPoint);
                             lineNode->alwaysOnTop() = true;
                             clickedPointV = hitPoint;
                         }
@@ -194,6 +152,48 @@ void InteractiveQuadMeshPlugin::slotMouseEvent(QMouseEvent *_event) {
                 }
             }
             return;
+        }
+
+        if (_event->button() == Qt::LeftButton) {
+            size_t node_idx, target_idx;
+            ACG::Vec3d hit_point;
+            // pick vertices
+            if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_ANYTHING,
+                                                _event->pos(), node_idx, target_idx, &hit_point)) {
+                BaseObjectData *object(0);
+                PluginFunctions::getPickedObject(node_idx, object);
+                if (!object) return;
+                TriMeshObject *tri_obj = PluginFunctions::triMeshObject(object);
+
+                if (tri_obj) {
+                    if (PluginFunctions::scenegraphPick(ACG::SceneGraph::PICK_FACE, _event->pos(), node_idx, target_idx,
+                                                        &hit_point)) {
+                        auto targetedFh = make_smart(tri_obj->mesh()->face_handle(target_idx), tri_obj->mesh());
+                        float distance = INT_MAX;
+                        selectedOriginPoint = hit_point;
+                        originVertices.clear();
+                        for (auto he: targetedFh.halfedges()) {
+                            originVertices.push_back(he.to().idx());
+                            ACG::Vec3d distVector = selectedOriginPoint - tri_obj->mesh()->point(he.to());
+                            if (distVector.norm() < distance) {
+                                distance = distVector.norm();
+                                selectedVertex = he.to();
+                            }
+                        }
+
+//                        std::cout << "selectedOrigin " << selectedOriginPoint << std::endl;
+                        // visualization
+                        tri_obj->meshNode()->drawMode(ACG::SceneGraph::DrawModes::WIREFRAME
+                                                      | ACG::SceneGraph::DrawModes::SOLID_SMOOTH_SHADED);
+
+                        tri_obj->materialNode()->enable_alpha_test(0.8);
+                        // updates color of vertices
+                        emit updatedObject(tri_obj->id(), UPDATE_COLOR);
+                        return;
+                    }
+                }
+            }
+
         }
         // Continue traversing scene graph
         ACG::SceneGraph::MouseEventAction action(_event, PluginFunctions::viewerProperties().glState());
@@ -229,8 +229,8 @@ void InteractiveQuadMeshPlugin::slotUpdateTexture(QString _textureName, int _ide
 void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
     elementM = tool_->sizeM->value();
     elementN = tool_->sizeN->value();
-    refVectorU = clickedPointU - selectedVertexAsPoint;
-    refVectorV = clickedPointV - selectedVertexAsPoint;
+    refVectorU = clickedPointU - selectedOriginPoint;
+    refVectorV = clickedPointV - selectedOriginPoint;
     double angle = acos((refVectorU | refVectorV) / refVectorU.norm() * refVectorV.norm());
     double restAngle;
     // step one calculate length of quads
@@ -265,8 +265,8 @@ void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
 //            PatchPreview patch{*trimesh};
 //            patch.getCurvature();
             dijkDistMesh.cleanMeshOfProps();
-            originHalfedges = dijkDistMesh.getHeFromVertex(selectedVertex);
-            std::vector<int> includedFaces = dijkDistMesh.calculateDijkstra(originHalfedges, refDist, inclBoundaryF);
+            originHalfedges = dijkDistMesh.getHeFromVertex(selectedVertex, originVertices);
+            std::vector<int> includedFaces = dijkDistMesh.calculateDijkstra(originHalfedges, refDist);
             includedHalfedges = dijkDistMesh.getAllHeFromFaces(includedFaces);
             dijkDistMesh.colorizeEdges(includedHalfedges);
             PluginFunctions::triMeshObject(*o_it)->meshNode()->drawMode(
