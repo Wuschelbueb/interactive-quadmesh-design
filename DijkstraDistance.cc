@@ -201,10 +201,10 @@ void DijkstraDistance::colorDualGraph(const std::vector<int> &faces) {
     auto dualGraphOrigin = OpenMesh::FProp<int>(trimesh_, "dualGraphOrigin");
     auto faceSel = OpenMesh::FProp<bool>(trimesh_, "faceSel");
     auto borderDualG = OpenMesh::EProp<int>(trimesh_, "borderDualG");
-    for(auto &i: faces) {
-        auto fh = make_smart(trimesh_.face_handle(i),trimesh_);
-        for(auto fhe_it: fh.halfedges()) {
-            if(fhe_it.opp().is_boundary()) {
+    for (auto &i: faces) {
+        auto fh = make_smart(trimesh_.face_handle(i), trimesh_);
+        for (auto fhe_it: fh.halfedges()) {
+            if (fhe_it.opp().is_boundary()) {
                 borderDualG[fhe_it.edge()] = 1;
                 continue;
             }
@@ -339,14 +339,23 @@ int DijkstraDistance::getSmallestDistProp(const double refDist) {
     return idx;
 }
 
-std::vector<int> DijkstraDistance::getHeFromVertex(OpenMesh::VertexHandle selectedVertex) {
+std::vector<int>
+DijkstraDistance::getHeFromVertex(OpenMesh::VertexHandle selectedVertex, const std::vector<int> &originVertices) {
+    trimesh_.request_halfedge_status();
+    for (auto he: trimesh_.halfedges()) {
+        trimesh_.status(he).set_tagged(false);
+    }
     std::vector<int> constraints;
-    trimesh_.status(selectedVertex).set_selected(false);
-    for (auto voh_it = trimesh_.voh_iter(selectedVertex); voh_it.is_valid(); ++voh_it) {
-        if (!voh_it->is_boundary()) {
-            constraints.push_back(voh_it->idx());
+    for (auto i: originVertices) {
+        auto vh = trimesh_.vertex_handle(i);
+        for (auto voh_it = trimesh_.voh_iter(vh); voh_it.is_valid(); ++voh_it) {
+            if (!voh_it->is_boundary() && !voh_it->tagged()) {
+                trimesh_.status(*voh_it).set_tagged(true);
+                constraints.push_back(voh_it->idx());
+            }
         }
     }
+    trimesh_.release_halfedge_status();
     return constraints;
 }
 

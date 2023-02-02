@@ -80,7 +80,7 @@ public:
      * get halfedges which got selected with the selection tool
      * @return a vector with halfedges
      */
-    std::vector<int> getHeFromVertex(OpenMesh::VertexHandle selectedVertex);
+    std::vector<int> getHeFromVertex(OpenMesh::VertexHandle selectedVertex, const std::vector<int> &originVertices);
 
 private:
 
