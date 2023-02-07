@@ -244,9 +244,9 @@ void InteractiveQuadMeshPlugin::slot_get_preview_dijkstra() {
     double distanceV = elementN * refVectorVLengthAt90Deg;
 
     if (distanceU > distanceV) {
-        refDist = distanceU * 1.5;
+        refDist = distanceU * 1.2;
     } else {
-        refDist = distanceV * 1.5;
+        refDist = distanceV * 1.2;
     }
 //    const bool inclBoundaryF = tool_->include_boundary_faces->isChecked();
     const bool inclBoundaryF = false;
